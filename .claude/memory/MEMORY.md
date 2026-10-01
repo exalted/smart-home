@@ -1,0 +1,1 @@
+- [Future ecosystems](future-ecosystems.md) — Matter/Thread, DIRIGERA, HomeKit, HA planned; keep names portable (see shelly-naming skill)
