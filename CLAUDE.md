@@ -16,11 +16,64 @@ Flag electrical-safety concerns (mains wiring, load ratings, neutral requirement
 
 ## Home setup
 
-- **Network**: All Shelly devices are on a separate guest Wi-Fi network, "FRITZ!Box guest access", which has its own password (not stored here; ask the user when needed). FRITZ!Box isolates the guest network from the main home network, so if the devices seem unreachable over the local network, this machine is most likely not on the guest network. Also check whether the guest access settings allow guest devices to communicate with each other.
-  - This computer normally stays on the main (non-guest) network and should stay there for everything else. It can join the guest network when a task genuinely needs local access to the devices (consider whether Shelly Cloud is enough first). Ask the user before switching networks, and switch back to the main network once done.
-- **Cloud**: All Shelly devices belong to a single home in the Shelly app, under one Shelly Cloud account. Shelly Cloud is an alternative route to the devices when local network access isn't possible.
-- **Devices**: 10 × Shelly 2PM Gen3, all in the `cover` profile (as opposed to the `switch` profile), each driving one roller shutter / blind motor. In the Gen2+ API this is the `Cover` component (`cover:0`, `Cover.*` RPC methods); Gen1 devices called the same mode "roller", and Home Assistant exposes it as a `cover` entity.
+- **Network**: All Shelly devices are on a separate guest Wi-Fi network, "FRITZ!Box guest access" (192.168.179.0/24, gateway 192.168.179.1), which has its own password (not stored here; ask the user when needed). FRITZ!Box isolates the guest network from the main home network.
+  - The main network is "<main Wi-Fi>".
+  - This computer normally stays on the main (non-guest) network and should stay there for everything else. It can join the guest network when a task genuinely needs local access to the devices (consider whether Shelly Cloud is enough first).
+  - Local access also needs FRITZ!Box > Wi-Fi > Guest Access > "Wireless devices may communicate with each other" turned on; with it off, guest devices only reach the router. The user toggles it.
+  - **The user switches networks manually**, in both directions. Don't switch Wi-Fi yourself: pause and ask the user to join the guest network when local access is needed, and pause again to tell them when the guest network is no longer needed so they can switch back (and turn guest-to-guest communication off again if they want). `bin/shelly-netcheck` tells which of the two is missing; see the `shelly-local-access` skill.
+- **Cloud**: All Shelly devices belong to a single home in the Shelly app, under one Shelly Cloud account. Shelly Cloud is an alternative route to the devices when local network access isn't possible. The Shelly app keeps its own copy of each device's name and its room; the public Cloud Control API exposes neither (nor reboot), so use the web app (`shelly-cloud-web-app` skill).
+- **Devices**: 10 × Shelly 2PM Gen3 (`S3SW-002P16EU`, firmware 2.0.1), all in the `cover` profile (as opposed to the `switch` profile), each driving one roller shutter / blind motor. In the Gen2+ API this is the `Cover` component (`cover:0`, `Cover.*` RPC methods); Gen1 devices called the same mode "roller", and Home Assistant exposes it as a `cover` entity. Matter is off, and only Tapparella porta camera ospiti is calibrated (the user will deal with calibration later).
+
+  | Name (on device and in the Shelly app) | Room | ID / MAC | Last seen IP |
+  |---|---|---|---|
+  | Tapparella bagno matrimoniale | Bagno matrimoniale | <device-id> | 192.168.179.11 |
+  | Tapparella bagno ospiti | Bagno ospiti | <device-id> | 192.168.179.7 |
+  | Tapparella camera ospiti | Camera ospiti | <device-id> | 192.168.179.21 |
+  | Tapparella porta camera ospiti | Camera ospiti | <device-id> | 192.168.179.6 |
+  | Tapparella porta matrimoniale | Camera matrimoniale | <device-id> | 192.168.179.15 |
+  | Tapparella cucina | Cucina | <device-id> | 192.168.179.4 |
+  | Tapparella porta cucina | Cucina | <device-id> | 192.168.179.17 |
+  | Tapparella soggiorno | Soggiorno | <device-id> | 192.168.179.13 |
+  | Tapparella porta soggiorno | Soggiorno | <device-id> | 192.168.179.9 |
+  | Tapparella studio | Studio | <device-id> | 192.168.179.19 |
+
+  IPs come from DHCP; the ID/MAC is the stable identity. Names follow `<Tipo> [porta] <stanza>` (window is the default); see the `shelly-naming` skill before naming anything. Refer to devices by name, with technical details in parentheses after it.
 
 ### Keeping this section current
 
 The home changes over time, so treat the setup above as a snapshot (last verified: 2026-10-01). Whenever a task involves the devices and you can reach them (local network or Shelly Cloud), check the device count, models, generation, and profile/function against what is written here, e.g. via `Shelly.GetDeviceInfo`. If the snapshot is more than ~3 months old, suggest a re-check to the user. On any mismatch, update this section and the "last verified" date.
+
+## Tools
+
+Small POSIX `sh` tools in `bin/` (shared code in `lib/shelly.sh`; needs `curl`, `jq`, `column`). Run them from the repo root. They need local access to the devices (guest network). Every tool reads one device per line on stdin, either a bare IP or a JSON object with `"ip"`, merges its own fields into it and prints JSON lines, so they compose with pipes and `jq`:
+
+```sh
+bin/shelly-scan | bin/shelly-info | bin/shelly-table name ip restart_required cover_state
+```
+
+| Tool | What it does | Skill |
+|---|---|---|
+| `bin/shelly-netcheck [SUBNET]` | Says whether the devices are reachable and, if not, what the user must change (exit 0 ready, 2 not on the guest network, 3 guest isolation on) | `shelly-local-access` |
+| `bin/shelly-scan [SUBNET]` | Finds devices by probing the /24 for `GET /shelly`; prints name, ip, id, mac, model, ver, profile, ... | `shelly-discover` |
+| `bin/shelly-info` | Adds status highlights: fw, uptime, restart_required, updates, cover state/position/calibration, rssi, cloud | `shelly-discover` |
+| `bin/shelly-table [KEY...]` | Renders JSON lines as an aligned table for humans, sorted by the first column | `shelly-discover` |
+| `bin/shelly-rpc METHOD [PARAMS_JSON]` | Calls any Gen2+ RPC method on every input device in parallel | `shelly-rpc` |
+| `bin/shelly-reboot [--force] [--no-wait]` | Reboots devices, skipping covers in motion, and waits until they're back | `shelly-reboot` |
+| `bin/shelly-name-check [NAME...]` | Validates names against the house rules (ASCII letters/digits/spaces, ≤ 32 bytes, unique) | `shelly-naming` |
+| `bin/shelly-set-name HOST NAME` | Writes and reads back the on-device name; batch mode reads JSON lines with `ip`, `new_name`, optional `mac` guard | `shelly-rename-device` |
+
+Environment: `SHELLY_SUBNET` (default `192.168.179`), `SHELLY_PASSWORD` (for devices with a password; user is `admin`), `SHELLY_PARALLEL` (default 10), `SHELLY_TIMEOUT` (seconds, default 5). Lint with `shellcheck bin/* lib/*` (settings in `.shellcheckrc`).
+
+Put temporary files (scan results, browser captures) in `.scratch/`, which is git-ignored. The Chrome DevTools MCP can only write files inside the project, not in `/tmp`.
+
+## Skills
+
+Project skills in `.claude/skills/`:
+
+- `shelly-local-access`: getting onto the guest network, guest isolation, handing the network back
+- `shelly-discover`: inventory and status of the devices, keeping the snapshot above current
+- `shelly-rpc`: calling any device RPC method safely
+- `shelly-reboot`: safe batch reboots (the app has no bulk reboot)
+- `shelly-naming`: naming convention and where names live (device, Shelly app, Matter, Apple Home, Home Assistant, Alexa/Google, DIRIGERA)
+- `shelly-rename-device`: renaming end to end, on the device and in the Shelly app
+- `shelly-cloud-web-app`: driving control.shelly.cloud with the Chrome DevTools MCP (login hand-off, device list, cloud data, Edit device)
