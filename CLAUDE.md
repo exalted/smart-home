@@ -28,31 +28,31 @@ You learn this home and its devices by experience, and what carries that experie
 ## Home setup
 
 - **Network**: All Shelly devices are on a separate guest Wi-Fi network, "FRITZ!Box guest access" (192.168.179.0/24, gateway 192.168.179.1), which has its own password (not stored here; ask the user when needed). FRITZ!Box isolates the guest network from the main home network.
-  - The main network is "<main Wi-Fi>".
+  - The main network's name, the router, and the devices' security posture are in `CLAUDE.local.md` (see Publishing below).
   - This computer normally stays on the main (non-guest) network and should stay there for everything else. It can join the guest network when a task genuinely needs local access to the devices (consider whether Shelly Cloud is enough first).
   - Local access also needs FRITZ!Box > Wi-Fi > Guest Access > "Wireless devices may communicate with each other" turned on; with it off, guest devices only reach the router. The user toggles it.
   - **The user switches networks manually**, in both directions. Don't switch Wi-Fi yourself: pause and ask the user to join the guest network when local access is needed, and pause again to tell them when the guest network is no longer needed so they can switch back (and turn guest-to-guest communication off again if they want). `bin/shelly-netcheck` tells which of the two is missing; see the `shelly-local-access` skill.
 - **Cloud**: All Shelly devices belong to a single home in the Shelly app, under one Shelly Cloud account. Shelly Cloud is an alternative route to the devices when local network access isn't possible. The Shelly app keeps its own copy of each device's name and its room; the public Cloud Control API exposes neither (nor reboot), so use the web app (`shelly-cloud-web-app` skill).
 - **Devices**: 10 × Shelly 2PM Gen3 (`S3SW-002P16EU`, firmware 2.0.1), all in the `cover` profile (as opposed to the `switch` profile), each driving one roller shutter / blind motor. In the Gen2+ API this is the `Cover` component (`cover:0`, `Cover.*` RPC methods); Gen1 devices called the same mode "roller", and Home Assistant exposes it as a `cover` entity. Matter is off, and no device is calibrated (the user will calibrate them later). On every device both the motor wires and the wall-switch wires are crossed (the app's arrows moved the rollers the wrong way while the wall switches were right), so all 10 have "Reverse directions" and "Swap inputs" on (`invert_directions`, `swap_inputs`; set 2026-10-02, see the `shelly-cover-direction` skill). The user confirmed the fix on Tapparella studio; the other 9 are not tested yet. Tapparella porta camera ospiti had been calibrated before the flip; that stale calibration was cleared on 2026-10-02.
 
-  | Name (on device and in the Shelly app) | Room | ID / MAC | Last seen IP |
-  |---|---|---|---|
-  | Tapparella bagno matrimoniale | Bagno matrimoniale | <device-id> | 192.168.179.11 |
-  | Tapparella bagno ospiti | Bagno ospiti | <device-id> | 192.168.179.7 |
-  | Tapparella camera ospiti | Camera ospiti | <device-id> | 192.168.179.21 |
-  | Tapparella porta camera ospiti | Camera ospiti | <device-id> | 192.168.179.6 |
-  | Tapparella porta matrimoniale | Camera matrimoniale | <device-id> | 192.168.179.15 |
-  | Tapparella cucina | Cucina | <device-id> | 192.168.179.4 |
-  | Tapparella porta cucina | Cucina | <device-id> | 192.168.179.17 |
-  | Tapparella soggiorno | Soggiorno | <device-id> | 192.168.179.13 |
-  | Tapparella porta soggiorno | Soggiorno | <device-id> | 192.168.179.9 |
-  | Tapparella studio | Studio | <device-id> | 192.168.179.19 |
+  | Name (on device and in the Shelly app) | Room |
+  |---|---|
+  | Tapparella bagno matrimoniale | Bagno matrimoniale |
+  | Tapparella bagno ospiti | Bagno ospiti |
+  | Tapparella camera ospiti | Camera ospiti |
+  | Tapparella porta camera ospiti | Camera ospiti |
+  | Tapparella porta matrimoniale | Camera matrimoniale |
+  | Tapparella cucina | Cucina |
+  | Tapparella porta cucina | Cucina |
+  | Tapparella soggiorno | Soggiorno |
+  | Tapparella porta soggiorno | Soggiorno |
+  | Tapparella studio | Studio |
 
-  IPs come from DHCP; the ID/MAC is the stable identity. Names follow `<Tipo> [porta] <stanza>` (window is the default); see the `shelly-naming` skill before naming anything. Refer to devices by name, with technical details in parentheses after it.
+  Each device's ID/MAC (its stable identity) and last-seen IP (from DHCP) are in the device table in `CLAUDE.local.md`. Names follow `<Tipo> [porta] <stanza>` (window is the default); see the `shelly-naming` skill before naming anything. Refer to devices by name, with technical details in parentheses after it.
 
 ### Keeping this section current
 
-The home changes over time, so treat the setup above as a snapshot (last verified: 2026-10-02). Whenever a task involves the devices and you can reach them (local network or Shelly Cloud), check the device count, models, generation, and profile/function against what is written here, e.g. via `Shelly.GetDeviceInfo`. If the snapshot is more than ~3 months old, suggest a re-check to the user. On any mismatch, update this section and the "last verified" date.
+The home changes over time, so treat the setup above as a snapshot (last verified: 2026-10-02). Whenever a task involves the devices and you can reach them (local network or Shelly Cloud), check the device count, models, generation, and profile/function against what is written here, e.g. via `Shelly.GetDeviceInfo`. If the snapshot is more than ~3 months old, suggest a re-check to the user. On any mismatch, update this section, `CLAUDE.local.md`, and the "last verified" dates.
 
 ## Tools
 
@@ -97,4 +97,15 @@ Project skills in `.claude/skills/`:
 
 ## Git
 
-- Never commit plan files (`.claude/plans/`), including to-do lists for later sessions. They stay local and untracked; don't git-ignore them either. The user asked for this explicitly.
+- Never commit plan files (`.claude/plans/`), including to-do lists for later sessions. They stay local and untracked (no need to git-ignore them). The user asked for this explicitly.
+
+## Publishing
+
+This repository may be published (e.g. on GitHub), so treat every commit as public. Never commit anything that identifies this home or helps an attacker:
+
+- credentials of any kind (device, Wi-Fi, Shelly Cloud or app passwords, tokens, keys, cookies, the web app's bearer token)
+- device IDs/MACs and serials, and data that can locate the home (BSSIDs, addresses, coordinates)
+- the home's own network details beyond the FRITZ!Box defaults (the main Wi-Fi name, the router model and IP)
+- the security posture (which devices have no password, what is reachable from where, and when)
+
+Keep such details in `CLAUDE.local.md`, which is git-ignored and loads into every session anyway. In tracked files, refer to devices by name and use placeholders like `<device-id>` in examples. Tool output, captures and screenshots stay in `.scratch/`. Before every commit, review the staged diff for such details (e.g. `git diff --cached | grep -i -E 'b08184|password|token'`; `b08184` is the Shelly MAC prefix). If something slips into a commit, rewrite the history to remove it, then purge the old copies (backup refs, reflog, `git gc --prune=now`) and confirm with `git cat-file --batch-all-objects --batch | grep ...` that it's gone. History was scrubbed this way on 2026-10-02.

@@ -5,7 +5,7 @@ description: Get and verify local network access to the home's Shelly devices (F
 
 # Local access to the Shelly devices
 
-The Shelly devices live on the FRITZ!Box guest Wi-Fi "FRITZ!Box guest access" (192.168.179.0/24, gateway 192.168.179.1). This Mac normally sits on the main network "<main Wi-Fi>", which FRITZ!Box isolates from the guest network. Local access needs two things only the user can do:
+The Shelly devices live on the FRITZ!Box guest Wi-Fi "FRITZ!Box guest access" (192.168.179.0/24, gateway 192.168.179.1). This Mac normally sits on the main network (name in `CLAUDE.local.md`), which FRITZ!Box isolates from the guest network. Local access needs two things only the user can do:
 
 1. Join this Mac to the guest Wi-Fi.
 2. Allow guest-to-guest traffic: FRITZ!Box > Wi-Fi > Guest Access > "Wireless devices may communicate with each other" ON. With it off, guest devices reach only the router, so nothing answers even though the Mac is on the right network.
@@ -32,11 +32,11 @@ The user switches networks manually, in both directions, and asked to be told wh
 
 Say so right away rather than waiting to be asked, because it's easy to forget:
 
-- The user can switch back to "<main Wi-Fi>".
+- The user can switch back to the main network.
 - They may want to turn "Wireless devices may communicate with each other" off again. While it's on, anyone on the guest Wi-Fi can reach the devices.
 
 ## Diagnostics when netcheck's verdict looks wrong
 
 - `command ipconfig getifaddr en0` shows 192.168.179.x on the guest network and another address on the main network.
 - `command arp -an -i en0` lists only the gateway and this Mac when guest isolation is on.
-- From the main network, `command curl -s http://<router-ip>/jason_boxinfo.xml` identifies the router model and FRITZ!OS version.
+- From the main network, `command curl -s http://<router-ip>/jason_boxinfo.xml` (router IP in `CLAUDE.local.md`) identifies the router model and FRITZ!OS version.

@@ -36,6 +36,6 @@ Refer to each device by its name, with technical details after it in parentheses
 - `cloud` tells whether the device is connected to Shelly Cloud.
 - `auth` tells whether a device password is set.
 
-## Keep CLAUDE.md current
+## Keep CLAUDE.md and CLAUDE.local.md current
 
-CLAUDE.md's "Home setup" section holds a device snapshot with a "last verified" date. After a scan, compare the count, models, generation, profile, and names against it. On any mismatch, update the snapshot and the date. If the date is more than about 3 months old, suggest a re-check to the user.
+CLAUDE.md's "Home setup" section holds a device snapshot with a "last verified" date; the IDs/MACs and last-seen IPs live in the device table in the git-ignored `CLAUDE.local.md` (see "Publishing" in CLAUDE.md). After a scan, compare the count, models, generation, profile, names, IDs and IPs against them. On any mismatch, update the right file and the date. If the date is more than about 3 months old, suggest a re-check to the user.

@@ -46,18 +46,20 @@ So a rename always covers the device **and** the Shelly app (shelly-rename-devic
 
 ## Current names (2026-10-01)
 
-| Name | Room (Shelly app) | ID / MAC |
-|---|---|---|
-| Tapparella bagno matrimoniale | Bagno matrimoniale | <device-id> |
-| Tapparella bagno ospiti | Bagno ospiti | <device-id> |
-| Tapparella camera ospiti | Camera ospiti | <device-id> |
-| Tapparella porta camera ospiti | Camera ospiti | <device-id> |
-| Tapparella porta matrimoniale | Camera matrimoniale | <device-id> |
-| Tapparella cucina | Cucina | <device-id> |
-| Tapparella porta cucina | Cucina | <device-id> |
-| Tapparella soggiorno | Soggiorno | <device-id> |
-| Tapparella porta soggiorno | Soggiorno | <device-id> |
-| Tapparella studio | Studio | <device-id> |
+IDs/MACs are in the device table in `CLAUDE.local.md`.
+
+| Name | Room (Shelly app) |
+|---|---|
+| Tapparella bagno matrimoniale | Bagno matrimoniale |
+| Tapparella bagno ospiti | Bagno ospiti |
+| Tapparella camera ospiti | Camera ospiti |
+| Tapparella porta camera ospiti | Camera ospiti |
+| Tapparella porta matrimoniale | Camera matrimoniale |
+| Tapparella cucina | Cucina |
+| Tapparella porta cucina | Cucina |
+| Tapparella soggiorno | Soggiorno |
+| Tapparella porta soggiorno | Soggiorno |
+| Tapparella studio | Studio |
 
 ## Smaller notes
 
