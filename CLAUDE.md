@@ -14,6 +14,17 @@ Check the official Shelly API docs (https://shelly-api-docs.shelly.cloud) or con
 
 Flag electrical-safety concerns (mains wiring, load ratings, neutral requirements, heat dissipation in wall boxes) whenever they are relevant.
 
+### Learning by experience
+
+You learn this home and its devices by experience, and what carries that experience from one session to the next is this file and the project skills in `.claude/skills/`. Keeping them current is part of every task, not an extra:
+
+- When a task teaches you something durable (a device behavior, a firmware quirk, an API or app limitation, a UI path, a user preference, a mistake not to repeat), write it where the next session will look: this file for facts about the home and how to work in it, the relevant skill for how to carry out a task.
+- When a task has no skill yet and is likely to come back, create one and list it under Skills below. When a skill turns out wrong or incomplete, fix it.
+- Turn repeatable steps into tools, Unix style: when you find yourself running the same commands or pipeline again, or a skill describes steps a script could do, write a small `bin/` tool that does one thing well and follows the conventions under Tools below (devices as JSON lines in and out, shared code in `lib/shelly.sh`, clean `shellcheck`). Prefer a new tool, or an option on an existing one, over a tool that does several jobs. Tie each tool to the skill that explains when and why to use it, both in the skill and in the Tools table.
+- Mark what isn't verified yet (e.g. taken from the docs but not tried on these devices), and replace it with what you observed once you have. Date your observations.
+- Correct or remove what turns out wrong or outdated, so the files stay accurate rather than just growing.
+- At the end of the task, tell the user what you added or changed.
+
 ## Home setup
 
 - **Network**: All Shelly devices are on a separate guest Wi-Fi network, "FRITZ!Box guest access" (192.168.179.0/24, gateway 192.168.179.1), which has its own password (not stored here; ask the user when needed). FRITZ!Box isolates the guest network from the main home network.
@@ -22,7 +33,7 @@ Flag electrical-safety concerns (mains wiring, load ratings, neutral requirement
   - Local access also needs FRITZ!Box > Wi-Fi > Guest Access > "Wireless devices may communicate with each other" turned on; with it off, guest devices only reach the router. The user toggles it.
   - **The user switches networks manually**, in both directions. Don't switch Wi-Fi yourself: pause and ask the user to join the guest network when local access is needed, and pause again to tell them when the guest network is no longer needed so they can switch back (and turn guest-to-guest communication off again if they want). `bin/shelly-netcheck` tells which of the two is missing; see the `shelly-local-access` skill.
 - **Cloud**: All Shelly devices belong to a single home in the Shelly app, under one Shelly Cloud account. Shelly Cloud is an alternative route to the devices when local network access isn't possible. The Shelly app keeps its own copy of each device's name and its room; the public Cloud Control API exposes neither (nor reboot), so use the web app (`shelly-cloud-web-app` skill).
-- **Devices**: 10 × Shelly 2PM Gen3 (`S3SW-002P16EU`, firmware 2.0.1), all in the `cover` profile (as opposed to the `switch` profile), each driving one roller shutter / blind motor. In the Gen2+ API this is the `Cover` component (`cover:0`, `Cover.*` RPC methods); Gen1 devices called the same mode "roller", and Home Assistant exposes it as a `cover` entity. Matter is off, and only Tapparella porta camera ospiti is calibrated (the user will deal with calibration later).
+- **Devices**: 10 × Shelly 2PM Gen3 (`S3SW-002P16EU`, firmware 2.0.1), all in the `cover` profile (as opposed to the `switch` profile), each driving one roller shutter / blind motor. In the Gen2+ API this is the `Cover` component (`cover:0`, `Cover.*` RPC methods); Gen1 devices called the same mode "roller", and Home Assistant exposes it as a `cover` entity. Matter is off, and no device is calibrated (the user will calibrate them later). On every device both the motor wires and the wall-switch wires are crossed (the app's arrows moved the rollers the wrong way while the wall switches were right), so all 10 have "Reverse directions" and "Swap inputs" on (`invert_directions`, `swap_inputs`; set 2026-10-02, see the `shelly-cover-direction` skill). The user confirmed the fix on Tapparella studio; the other 9 are not tested yet. Tapparella porta camera ospiti had been calibrated before the flip; that stale calibration was cleared on 2026-10-02.
 
   | Name (on device and in the Shelly app) | Room | ID / MAC | Last seen IP |
   |---|---|---|---|
@@ -41,7 +52,7 @@ Flag electrical-safety concerns (mains wiring, load ratings, neutral requirement
 
 ### Keeping this section current
 
-The home changes over time, so treat the setup above as a snapshot (last verified: 2026-10-01). Whenever a task involves the devices and you can reach them (local network or Shelly Cloud), check the device count, models, generation, and profile/function against what is written here, e.g. via `Shelly.GetDeviceInfo`. If the snapshot is more than ~3 months old, suggest a re-check to the user. On any mismatch, update this section and the "last verified" date.
+The home changes over time, so treat the setup above as a snapshot (last verified: 2026-10-02). Whenever a task involves the devices and you can reach them (local network or Shelly Cloud), check the device count, models, generation, and profile/function against what is written here, e.g. via `Shelly.GetDeviceInfo`. If the snapshot is more than ~3 months old, suggest a re-check to the user. On any mismatch, update this section and the "last verified" date.
 
 ## Tools
 
@@ -57,6 +68,9 @@ bin/shelly-scan | bin/shelly-info | bin/shelly-table name ip restart_required co
 | `bin/shelly-scan [SUBNET]` | Finds devices by probing the /24 for `GET /shelly`; prints name, ip, id, mac, model, ver, profile, ... | `shelly-discover` |
 | `bin/shelly-info` | Adds status highlights: fw, uptime, restart_required, updates, cover state/position/calibration, rssi, cloud | `shelly-discover` |
 | `bin/shelly-table [KEY...]` | Renders JSON lines as an aligned table for humans, sorted by the first column | `shelly-discover` |
+| `bin/shelly-cover-config` | Adds the cover settings that decide how it moves: invert_directions, swap_inputs, in_mode, in_locked, maintenance_mode, maxtime_open/close | `shelly-cover-direction` |
+| `bin/shelly-cover-move open\|close [--for SECONDS]` | Opens or closes covers and ends the movement at the end stop or after SECONDS, instead of at the device's 60 s timeout | `shelly-cover-control` |
+| `bin/shelly-cover-forget-calibration [--all]` | Makes calibrated covers forget their calibration (start Cover.Calibrate, then Cover.Stop until stopped); moves the cover briefly | `shelly-cover-calibration` |
 | `bin/shelly-rpc METHOD [PARAMS_JSON]` | Calls any Gen2+ RPC method on every input device in parallel | `shelly-rpc` |
 | `bin/shelly-reboot [--force] [--no-wait]` | Reboots devices, skipping covers in motion, and waits until they're back | `shelly-reboot` |
 | `bin/shelly-name-check [NAME...]` | Validates names against the house rules (ASCII letters/digits/spaces, ≤ 32 bytes, unique) | `shelly-naming` |
@@ -74,6 +88,13 @@ Project skills in `.claude/skills/`:
 - `shelly-discover`: inventory and status of the devices, keeping the snapshot above current
 - `shelly-rpc`: calling any device RPC method safely
 - `shelly-reboot`: safe batch reboots (the app has no bulk reboot)
+- `shelly-cover-direction`: covers moving opposite to the app arrows or wall switches (Reverse directions, Swap inputs, motor wires)
+- `shelly-cover-control`: moving covers and stopping them properly (never leave a movement running until the device's timeout)
+- `shelly-cover-calibration`: calibrating, forgetting a calibration, unknown positions and the missing position slider
 - `shelly-naming`: naming convention and where names live (device, Shelly app, Matter, Apple Home, Home Assistant, Alexa/Google, DIRIGERA)
 - `shelly-rename-device`: renaming end to end, on the device and in the Shelly app
 - `shelly-cloud-web-app`: driving control.shelly.cloud with the Chrome DevTools MCP (login hand-off, device list, cloud data, Edit device)
+
+## Git
+
+- Never commit plan files (`.claude/plans/`), including to-do lists for later sessions. They stay local and untracked; don't git-ignore them either. The user asked for this explicitly.

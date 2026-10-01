@@ -1,0 +1,37 @@
+#!/bin/sh
+# Usage: shelly-cover-config
+#
+# Reads devices on stdin (bare IPs, or JSON lines with "ip", e.g. from
+# shelly-scan) and prints one JSON line per device with the cover:0 settings
+# that decide how it moves: invert_directions, swap_inputs, in_mode,
+# in_locked, maintenance_mode, maxtime_open, maxtime_close. Input fields are
+# kept. Devices without a cover get an error.
+#
+# Example: shelly-scan | shelly-cover-config | shelly-table name invert_directions swap_inputs in_mode
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+if [ "${1:-}" = --worker ]; then
+  line=$2
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  config=$(shelly_call "$ip" Cover.GetConfig '{"id":0}')
+  out=$(jq -nc --argjson in "$line" --argjson c "$config" '
+    if $c.error then $in + {error: $c.error}
+    else
+      $c.result as $r
+      | $in + {
+          invert_directions: $r.invert_directions, swap_inputs: $r.swap_inputs,
+          in_mode: $r.in_mode, in_locked: $r.in_locked,
+          maintenance_mode: $r.maintenance_mode,
+          maxtime_open: $r.maxtime_open, maxtime_close: $r.maxtime_close
+        }
+    end')
+  printf '%s\n' "$out"
+  printf '%s' "$out" | jq -e '.error == null' >/dev/null
+  exit
+fi
+case ${1:-} in -h | --help) usage_from_header; exit 0 ;; esac
+need curl jq
+
+shelly_each "$0" --worker || exit 1

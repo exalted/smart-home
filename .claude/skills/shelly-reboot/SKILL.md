@@ -34,4 +34,5 @@ The Shelly app has no bulk reboot and the public Cloud Control API has no reboot
 ## Known causes of restart_required
 
 - A bulk firmware update from the Shelly app (2026-10-01: all 10 devices after updating to 2.0.1).
+- `Cover.SetConfig` with `invert_directions`/`swap_inputs` replies `restart_required: true`, but the device reboots by itself right away, so there's nothing left to reboot (2026-10-02, Tapparella studio).
 - Some `Sys.SetConfig` writes, but **not** `device.name`. Renaming Tapparella studio and back on 2026-10-02 left `restart_required` false both in the reply and in the device status. The `true` replies to the renames on 2026-10-01 came while the firmware update's restart was still pending.

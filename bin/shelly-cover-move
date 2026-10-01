@@ -1,0 +1,112 @@
+#!/bin/sh
+# Usage: shelly-cover-move open|close [--for SECONDS]
+#
+# Opens or closes the cover of every device read from stdin (bare IPs, or JSON
+# lines with "ip"), in parallel, and makes sure the movement ends as soon as
+# it should instead of leaving the output on until maxtime_open/maxtime_close
+# (60 s by default) runs out. It watches the motor power and sends Cover.Stop
+# once the motor's own end stop has cut it, or after 3 s if the motor never
+# drew power (already at that end). With --for, the device itself stops after
+# SECONDS (0.1 or more). Prints each input object plus "moved", "stopped_by"
+# (end, already_at_end, device, timeout), "seconds" and the final "state".
+#
+# Covers already in motion are refused. This moves physical things: only run
+# it when the user asked for that movement.
+#
+# Example: shelly-scan | jq -c 'select(.name == "Tapparella studio")' | shelly-cover-move close --for 3
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+RUNNING_W=20 IDLE_W=5
+
+if [ "${1:-}" = --worker ]; then
+  action=$2 for=$3 line=$4
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  report() { printf '%s' "$line" | jq -c "$@"; }
+  fail() { report --arg m "$1" '. + {error: {message: $m}}'; exit 1; }
+  get() { shelly_call "$ip" Cover.GetStatus '{"id":0}'; }
+  above() { awk -v a="$1" -v b="$2" 'BEGIN { exit !(a > b) }'; }
+
+  case $action in
+    open) method=Cover.Open moving=opening ;;
+    close) method=Cover.Close moving=closing ;;
+  esac
+  status=$(get)
+  if printf '%s' "$status" | jq -e .error >/dev/null; then
+    report --argjson s "$status" '. + {error: $s.error}'
+    exit 1
+  fi
+  state=$(printf '%s' "$status" | jq -r .result.state)
+  case $state in opening | closing | calibrating) fail "cover is $state" ;; esac
+
+  params=$(jq -nc --arg d "$for" '{id: 0} + (if $d == "" then {} else {duration: ($d | tonumber)} end)')
+  resp=$(shelly_call "$ip" "$method" "$params")
+  if printf '%s' "$resp" | jq -e .error >/dev/null; then
+    report --argjson r "$resp" '. + {error: $r.error}'
+    exit 1
+  fi
+
+  start=$(date +%s) ran=no idle=0 stopped_by=
+  while [ -z "$stopped_by" ]; do
+    sleep 0.2
+    status=$(get)
+    state=$(printf '%s' "$status" | jq -r '.result.state // "unknown"')
+    apower=$(printf '%s' "$status" | jq -r '.result.apower // 0')
+    elapsed=$(($(date +%s) - start))
+    if [ "$state" != "$moving" ] && [ "$state" != unknown ]; then
+      stopped_by=device
+    elif above "$apower" "$RUNNING_W"; then
+      ran=yes idle=0
+    elif ! above "$apower" "$IDLE_W"; then
+      idle=$((idle + 1))
+      if [ "$ran" = yes ] && [ "$idle" -ge 3 ]; then
+        stopped_by=end
+      elif [ "$ran" = no ] && [ "$elapsed" -ge 3 ]; then
+        stopped_by=already_at_end
+      fi
+    fi
+    if [ -z "$stopped_by" ] && [ "$elapsed" -ge 120 ]; then stopped_by=timeout; fi
+  done
+
+  # Uncalibrated covers never notice their end stop, so they'd stay "opening"
+  # until maxtime. The state can lag a Stop briefly, hence the retries.
+  if [ "$stopped_by" != device ]; then
+    tries=0
+    while [ "$tries" -lt 20 ]; do
+      shelly_call "$ip" Cover.Stop '{"id":0}' >/dev/null
+      sleep 0.2
+      state=$(get | jq -r '.result.state // "unknown"')
+      case $state in "$moving" | unknown) ;; *) break ;; esac
+      tries=$((tries + 1))
+    done
+  fi
+
+  report --arg a "$action" --arg by "$stopped_by" --arg st "$state" \
+    --argjson sec "$(($(date +%s) - start))" \
+    '. + {moved: $a, stopped_by: $by, seconds: $sec, state: $st}'
+  case $state in opening | closing | unknown) exit 1 ;; esac
+  [ "$stopped_by" != timeout ]
+  exit
+fi
+
+action=${1:-} for=
+case $action in
+  open | close) shift ;;
+  -h | --help) usage_from_header; exit 0 ;;
+  *) die "usage: shelly-cover-move open|close [--for SECONDS]" ;;
+esac
+while [ $# -gt 0 ]; do
+  case $1 in
+    --for)
+      [ $# -ge 2 ] || die "--for needs SECONDS"
+      for=$2
+      shift 2
+      ;;
+    *) die "unknown option: $1" ;;
+  esac
+done
+case $for in *[!0-9.]* | .) die "--for needs a number of seconds, got: $for" ;; esac
+need curl jq awk
+
+shelly_each "$0" --worker "$action" "$for" || exit 1

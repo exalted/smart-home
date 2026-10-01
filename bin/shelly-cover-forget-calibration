@@ -1,0 +1,77 @@
+#!/bin/sh
+# Usage: shelly-cover-forget-calibration [--all]
+#
+# Makes the cover of every device read from stdin (bare IPs, or JSON lines
+# with "ip") forget its calibration, with as little movement as possible:
+# there is no reset method, so it starts Cover.Calibrate and interrupts it
+# with Cover.Stop, which discards the old calibration and saves nothing new.
+# Prints each input object plus "calibrated" (afterwards), "forgot" and
+# "stops_sent".
+#
+# The cover twitches. If it reports "open", the device ignores Stop for about
+# 3 s and then twitches down. Only calibrated covers are touched unless --all is given.
+# Covers in motion are refused.
+#
+# Example: shelly-scan | shelly-cover-forget-calibration | shelly-table name calibrated forgot stops_sent
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+if [ "${1:-}" = --worker ]; then
+  all=$2 line=$3
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  report() { printf '%s' "$line" | jq -c "$@"; }
+  fail() { report --arg m "$1" '. + {forgot: false, error: {message: $m}}'; exit 1; }
+
+  status=$(shelly_call "$ip" Cover.GetStatus '{"id":0}')
+  if printf '%s' "$status" | jq -e .error >/dev/null; then
+    report --argjson s "$status" '. + {forgot: false, error: $s.error}'
+    exit 1
+  fi
+  calibrated=$(printf '%s' "$status" | jq -r .result.pos_control)
+  state=$(printf '%s' "$status" | jq -r .result.state)
+  if [ "$calibrated" != true ] && [ "$all" = no ]; then
+    report '. + {calibrated: false, forgot: false, skipped: "not calibrated"}'
+    exit 0
+  fi
+  case $state in opening | closing | calibrating) fail "cover is $state" ;; esac
+
+  resp=$(shelly_call "$ip" Cover.Calibrate '{"id":0}')
+  if printf '%s' "$resp" | jq -e .error >/dev/null; then
+    report --argjson r "$resp" '. + {forgot: false, error: $r.error}'
+    exit 1
+  fi
+
+  # A single Stop isn't enough: when the calibration starts while the cover
+  # reports "open", the firmware ignores Stop for ~2.7 s and then starts
+  # closing. Repeating Stop until the state changes bounds that movement.
+  stops=0 deadline=$(($(date +%s) + 15))
+  while :; do
+    shelly_call "$ip" Cover.Stop '{"id":0}' >/dev/null
+    stops=$((stops + 1))
+    state=$(shelly_call "$ip" Cover.GetStatus '{"id":0}' | jq -r '.result.state // "unknown"')
+    case $state in calibrating | opening | closing | unknown) ;; *) break ;; esac
+    if [ "$(date +%s)" -gt "$deadline" ]; then
+      shelly_call "$ip" Cover.Stop '{"id":0}' >/dev/null
+      fail "still $state after 15 s of Stop commands; check the cover"
+    fi
+  done
+
+  status=$(shelly_call "$ip" Cover.GetStatus '{"id":0}')
+  report --argjson s "$status" --argjson n "$stops" \
+    '. + {calibrated: $s.result.pos_control, forgot: ($s.result.pos_control == false), stops_sent: $n}'
+  printf '%s' "$status" | jq -e '.result.pos_control == false' >/dev/null
+  exit
+fi
+
+all=no
+for arg; do
+  case $arg in
+    --all) all=yes ;;
+    -h | --help) usage_from_header; exit 0 ;;
+    *) die "unknown option: $arg" ;;
+  esac
+done
+need curl jq
+
+shelly_each "$0" --worker "$all" || exit 1

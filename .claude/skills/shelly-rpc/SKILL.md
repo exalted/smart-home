@@ -19,8 +19,9 @@ Look methods and parameters up in the official docs (https://shelly-api-docs.she
 Read-only calls (`*.Get*`, `*.List*`) are safe. For anything that changes state:
 
 - Tell the user what will change on which devices, by name, and wait for the go-ahead. They want to approve changes to their home.
-- Covers move physical things. Don't send movement commands unless the user asked for that movement.
+- Covers move physical things. Don't send movement commands unless the user asked for that movement, and never leave a movement running until the device's timeout: use `bin/shelly-cover-move` or end it with `Cover.Stop` (shelly-cover-control skill).
 - Many config writes return `{"restart_required": true}`, which is the same flag behind the Shelly app's "requires the device to be rebooted" notification. Say a reboot will be needed and use the shelly-reboot skill.
+- Settings you change only to investigate (debug logs, log levels, and the like) must end up exactly as you found them. Read and keep the original values before changing them, restore them before you finish (reboot if the change only took effect on a reboot), and check against the other devices. The user asked for this explicitly.
 - Leave `Shelly.FactoryReset`, `Wifi.SetConfig` for the station network, and cloud or auth changes in `Sys.SetConfig`/`Shelly.SetAuth` alone unless explicitly asked. They can cut you off from the device.
 
 ## Authentication
@@ -30,5 +31,6 @@ For devices with a password, export `SHELLY_PASSWORD` (the user name is always `
 ## Facts learned the hard way
 
 - `GET /shelly` never needs authentication; `/rpc` does on a device with a password.
+- Device debug log over UDP (`Sys.SetConfig` `{"debug":{"udp":{"addr":"<mac-ip>:<port>"}}}`) replies `restart_required: false`. Nothing arrived until a reboot, but that may only mean nothing was logged in the meantime: even at `debug.level` 3 it showed only boot, Wi-Fi and counter lines, nothing for `Cover.*` calls (2026-10-02, 2PM Gen3 firmware 2.0.1). So it didn't help with cover behavior, and whether it needs a reboot is unknown. Receive it with a small Python UDP socket, not BSD `nc -u -l`, which locks onto the first sender. Everything starts at `level: 2`, `udp.addr: null`, and websocket/MQTT/file logs off.
 - `Matter.GetConfig` on 2PM Gen3 firmware 2.0.1 has only `enable` (false on all devices). The device API offers no way to set the Matter node label.
 - The public Shelly Cloud Control API (v1 and v2 beta) has no reboot endpoint, no generic RPC endpoint, and doesn't return device names. Use local RPC for those, or the web app (shelly-cloud-web-app skill) for app-side data.
