@@ -1,0 +1,5 @@
+shell=sh
+external-sources=true
+source-path=SCRIPTDIR/../lib
+# jq filters are single-quoted on purpose: their $names are jq variables.
+disable=SC2016

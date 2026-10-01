@@ -1,0 +1,37 @@
+#!/bin/sh
+# Usage: shelly-scan [SUBNET]
+#
+# Finds Shelly devices by probing every address of a /24 subnet for the
+# unauthenticated /shelly identification endpoint. Prints one JSON line per
+# device: the /shelly response (name, id, mac, model, gen, ver, profile,
+# auth_en, ...) plus "ip".
+#
+# SUBNET is the first three octets, e.g. 192.168.179 (192.168.179.0/24 is
+# accepted too). Defaults to $SHELLY_SUBNET, the FRITZ!Box guest network.
+# Takes about 10 seconds.
+#
+# Example: shelly-scan | shelly-table name ip model ver
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+if [ "${1:-}" = --probe ]; then
+  curl -s -m 2 "http://$2/shelly" |
+    jq -c --arg ip "$2" 'select(type == "object" and (.id or .type)) | {name, ip: $ip} + .' 2>/dev/null || true
+  exit 0
+fi
+case ${1:-} in -h | --help) usage_from_header; exit 0 ;; esac
+need curl jq
+
+subnet=${1:-$SHELLY_SUBNET}
+subnet=${subnet%/24}
+case $subnet in *.*.*.*) subnet=${subnet%.*} ;; esac
+case $subnet in
+  '' | *[!0-9.]* | *..* | .* | *.) die "expected a /24 prefix like 192.168.179, got: $subnet" ;;
+esac
+
+i=1
+while [ "$i" -le 254 ]; do
+  printf '%s.%s\n' "$subnet" "$i"
+  i=$((i + 1))
+done | xargs -n 1 -P 64 "$0" --probe

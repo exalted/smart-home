@@ -1,0 +1,40 @@
+#!/bin/sh
+# Usage: shelly-info
+#
+# Reads devices on stdin (bare IPs, or JSON lines with "ip", e.g. from
+# shelly-scan) and prints one JSON line per device with what's needed to
+# reason about it: name, ip, id, mac, model, gen, fw, profile, auth, uptime,
+# restart_required, updates, cover_state, cover_pos, calibrated, rssi, cloud.
+# Input fields are kept; fields it fetches overwrite stale ones.
+#
+# Example: shelly-scan | shelly-info | shelly-table name ip restart_required cover_state
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+if [ "${1:-}" = --worker ]; then
+  line=$2
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  info=$(shelly_call "$ip" Shelly.GetDeviceInfo)
+  status=$(shelly_call "$ip" Shelly.GetStatus)
+  out=$(jq -nc --argjson in "$line" --argjson i "$info" --argjson s "$status" '
+    if $i.error or $s.error then $in + {error: ($i.error // $s.error)}
+    else
+      $i.result as $d | $s.result as $st | ($st["cover:0"] // {}) as $c
+      | {name: $d.name, ip: $in.ip} + $in + {
+          name: $d.name, id: $d.id, mac: $d.mac, model: $d.model, gen: $d.gen,
+          fw: $d.ver, profile: $d.profile, auth: $d.auth_en,
+          uptime: $st.sys.uptime, restart_required: $st.sys.restart_required,
+          updates: ($st.sys.available_updates // {} | keys),
+          cover_state: $c.state, cover_pos: $c.current_pos, calibrated: $c.pos_control,
+          rssi: $st.wifi.rssi, cloud: $st.cloud.connected
+        }
+    end')
+  printf '%s\n' "$out"
+  printf '%s' "$out" | jq -e '.error == null' >/dev/null
+  exit
+fi
+case ${1:-} in -h | --help) usage_from_header; exit 0 ;; esac
+need curl jq
+
+shelly_each "$0" --worker || exit 1

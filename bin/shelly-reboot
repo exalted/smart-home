@@ -1,0 +1,70 @@
+#!/bin/sh
+# Usage: shelly-reboot [--force] [--no-wait]
+#
+# Reboots every device read from stdin (bare IPs, or JSON lines with "ip"),
+# in parallel, then waits until each one is back up (up to ~60 s). Prints each
+# input object plus "rebooted", "uptime" and "restart_required".
+#
+# A reboot stops a moving cover, so devices whose cover is opening or closing
+# are skipped (reported with "error") unless --force is given.
+#
+# Example: shelly-scan | shelly-reboot | shelly-table name ip rebooted uptime restart_required
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+if [ "${1:-}" = --worker ]; then
+  force=$2 wait=$3 line=$4
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  report() { printf '%s' "$line" | jq -c "$@"; }
+
+  status=$(shelly_call "$ip" Shelly.GetStatus)
+  if printf '%s' "$status" | jq -e .error >/dev/null; then
+    report --argjson s "$status" '. + {rebooted: false, error: $s.error}'
+    exit 1
+  fi
+  state=$(printf '%s' "$status" | jq -r '.result["cover:0"].state // "none"')
+  if [ "$force" = no ] && { [ "$state" = opening ] || [ "$state" = closing ]; }; then
+    report --arg s "$state" '. + {rebooted: false, error: {message: "cover is \($s), use --force to reboot anyway"}}'
+    exit 1
+  fi
+  before=$(printf '%s' "$status" | jq -r .result.sys.uptime)
+
+  resp=$(shelly_call "$ip" Shelly.Reboot)
+  if printf '%s' "$resp" | jq -e .error >/dev/null; then
+    report --argjson r "$resp" '. + {rebooted: false, error: $r.error}'
+    exit 1
+  fi
+  if [ "$wait" = no ]; then
+    report '. + {rebooted: true}'
+    exit 0
+  fi
+
+  tries=0
+  while [ "$tries" -lt 30 ]; do
+    sleep 2
+    status=$(shelly_call "$ip" Shelly.GetStatus)
+    uptime=$(printf '%s' "$status" | jq -r '.result.sys.uptime // empty')
+    if [ -n "$uptime" ] && [ "$uptime" -lt "$before" ]; then
+      report --argjson s "$status" \
+        '. + {rebooted: true, uptime: $s.result.sys.uptime, restart_required: $s.result.sys.restart_required}'
+      exit 0
+    fi
+    tries=$((tries + 1))
+  done
+  report '. + {rebooted: true, error: {message: "not back within 60 s"}}'
+  exit 1
+fi
+
+force=no wait=yes
+for arg; do
+  case $arg in
+    --force) force=yes ;;
+    --no-wait) wait=no ;;
+    -h | --help) usage_from_header; exit 0 ;;
+    *) die "unknown option: $arg" ;;
+  esac
+done
+need curl jq
+
+shelly_each "$0" --worker "$force" "$wait" || exit 1

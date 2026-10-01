@@ -1,0 +1,70 @@
+#!/bin/sh
+# Usage: shelly-set-name HOST NAME
+#        shelly-set-name < devices.jsonl
+#
+# Writes the on-device name (sys.device.name) and reads it back. With no
+# arguments, reads JSON lines with "ip" and "new_name", plus optionally "mac":
+# the write is refused if the device at "ip" reports a different MAC, which
+# guards against DHCP having handed the IP to another device. Names are
+# validated with shelly-name-check first. Prints each input object plus
+# "name" (read back), "previous_name" and "restart_required".
+#
+# The Shelly app keeps its own copy of the name in the cloud, so rename it
+# there too (see the shelly-rename-device skill).
+#
+# Example:
+#   shelly-scan | jq -c 'select(.name == "Tapparella cucina") | .new_name = "Tapparella finestra cucina"' |
+#     shelly-set-name
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+if [ "${1:-}" = --worker ]; then
+  line=$2
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  new=$(printf '%s' "$line" | jq -r .new_name)
+  expected=$(printf '%s' "$line" | jq -r '.mac // empty' | tr -d ':' | tr 'a-f' 'A-F')
+  report() { printf '%s' "$line" | jq -c "$@"; }
+
+  info=$(shelly_call "$ip" Shelly.GetDeviceInfo)
+  if printf '%s' "$info" | jq -e .error >/dev/null; then
+    report --argjson r "$info" '. + {error: $r.error}'
+    exit 1
+  fi
+  actual=$(printf '%s' "$info" | jq -r .result.mac | tr -d ':' | tr 'a-f' 'A-F')
+  if [ -n "$expected" ] && [ "$expected" != "$actual" ]; then
+    report --arg a "$actual" '. + {error: {message: "MAC mismatch, the device at this IP is \($a)"}}'
+    exit 1
+  fi
+  previous=$(printf '%s' "$info" | jq -c .result.name)
+
+  resp=$(shelly_call "$ip" Sys.SetConfig "$(jq -nc --arg n "$new" '{config: {device: {name: $n}}}')")
+  if printf '%s' "$resp" | jq -e .error >/dev/null; then
+    report --argjson r "$resp" '. + {error: $r.error}'
+    exit 1
+  fi
+  back=$(shelly_call "$ip" Shelly.GetDeviceInfo | jq -c '.result.name')
+  report --argjson p "$previous" --argjson n "$back" --argjson r "$resp" \
+    '. + {name: $n, previous_name: $p, restart_required: $r.result.restart_required}'
+  [ "$back" = "$(jq -nc --arg n "$new" '$n')" ]
+  exit
+fi
+case ${1:-} in -h | --help) usage_from_header; exit 0 ;; esac
+need curl jq
+
+if [ $# -eq 2 ]; then
+  input=$(jq -nc --arg ip "$1" --arg n "$2" '{ip: $ip, new_name: $n}')
+elif [ $# -eq 0 ]; then
+  input=$(shelly_normalize)
+else
+  usage_from_header >&2
+  exit 2
+fi
+printf '%s\n' "$input" | jq -se 'all(.[]; .new_name | type == "string")' >/dev/null ||
+  die 'every input line needs a "new_name"'
+if ! checks=$(printf '%s\n' "$input" | jq -r .new_name | "$(dirname "$0")/shelly-name-check"); then
+  printf '%s\n' "$checks" | jq -c 'select(.ok | not)' >&2
+  die "invalid names, nothing was written"
+fi
+
+printf '%s\n' "$input" | shelly_each "$0" --worker || exit 1

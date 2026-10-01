@@ -1,0 +1,21 @@
+#!/bin/sh
+# Usage: shelly-table [KEY...]
+#
+# Renders JSON lines from stdin as an aligned table for humans, sorted by the
+# first column. Columns are the given KEYs, or every key of the first line.
+# Missing values show as "-". Put "name" first so devices are identified by
+# their human name.
+#
+# Example: shelly-scan | shelly-info | shelly-table name ip cover_state
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+case ${1:-} in -h | --help) usage_from_header; exit 0 ;; esac
+need jq column
+
+jq -rs '
+  (if $ARGS.positional | length > 0 then $ARGS.positional else (.[0] // {} | keys_unsorted) end) as $cols
+  | ($cols | @tsv),
+    (map([.[$cols[]] | if . == null or . == "" then "-" elif type == "string" then . else tojson end])
+     | sort | .[] | @tsv)
+' --args "$@" | column -t -s "$(printf '\t')"

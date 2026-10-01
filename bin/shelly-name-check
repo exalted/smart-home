@@ -1,0 +1,40 @@
+#!/bin/sh
+# Usage: shelly-name-check [NAME...]
+#
+# Checks device names (arguments, or one per line on stdin) against the house
+# naming rules, which keep a name usable in HomeKit/Apple Home, Matter, Home
+# Assistant, voice assistants, shells and filenames:
+#   - only ASCII letters, digits and single spaces
+#   - starts and ends with a letter or digit
+#   - at most 32 bytes (Matter's NodeLabel limit)
+#   - unique within the checked set, ignoring case
+# Prints one JSON line per name: {name, bytes, ok, problems}. Exits 1 if any
+# name fails. The naming pattern itself ("<Tipo> [porta] <stanza>") needs
+# judgment and is described in the shelly-naming skill, not checked here.
+#
+# Example: shelly-scan | jq -r .name | shelly-name-check
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+case ${1:-} in -h | --help) usage_from_header; exit 0 ;; esac
+need jq
+
+out=$(
+  if [ $# -gt 0 ]; then printf '%s\n' "$@"; else cat; fi |
+    jq -Rnc '
+      [inputs | select(length > 0)] as $names
+      | ($names | map(ascii_downcase) | group_by(.) | map(select(length > 1) | .[0])) as $dups
+      | $names[]
+      | . as $n
+      | ($n | ascii_downcase) as $lower
+      | [ (if test("^[A-Za-z0-9 ]+$") then empty else "only ASCII letters, digits and spaces are allowed" end),
+          (if test("^ | $") then "must start and end with a letter or digit" else empty end),
+          (if test("  ") then "contains consecutive spaces" else empty end),
+          (if utf8bytelength > 32 then "\(utf8bytelength) bytes, the limit is 32" else empty end),
+          (if any($dups[]; . == $lower) then "duplicate (ignoring case)" else empty end)
+        ] as $problems
+      | {name: $n, bytes: utf8bytelength, ok: ($problems | length == 0), problems: $problems}'
+)
+[ -n "$out" ] || exit 0
+printf '%s\n' "$out"
+printf '%s\n' "$out" | jq -se 'all(.ok)' >/dev/null

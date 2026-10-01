@@ -1,0 +1,34 @@
+#!/bin/sh
+# Usage: shelly-rpc METHOD [PARAMS_JSON]
+#
+# Calls a Gen2+ JSON-RPC method on every device read from stdin (bare IPs, or
+# JSON lines with "ip"), in parallel. Prints each input object plus "result"
+# or "error". Exits non-zero if any device returned an error.
+#
+# Examples:
+#   shelly-scan | shelly-rpc Sys.GetConfig
+#   echo 192.168.179.4 | shelly-rpc Cover.GoToPosition '{"id":0,"pos":50}'
+#
+# Methods: https://shelly-api-docs.shelly.cloud/gen2/
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+if [ "${1:-}" = --worker ]; then
+  method=$2 params=$3 line=$4
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  resp=$(shelly_call "$ip" "$method" "$params")
+  printf '%s' "$resp" | jq -c --argjson in "$line" '$in + (if .error then {error} else {result} end)'
+  printf '%s' "$resp" | jq -e '.error == null' >/dev/null
+  exit
+fi
+case ${1:-} in
+  -h | --help) usage_from_header; exit 0 ;;
+  '') usage_from_header >&2; exit 2 ;;
+esac
+need curl jq
+
+method=$1 params=${2:-null}
+printf '%s' "$params" | jq -e . >/dev/null 2>&1 || [ "$params" = null ] ||
+  die "PARAMS_JSON is not valid JSON: $params"
+shelly_each "$0" --worker "$method" "$params" || exit 1

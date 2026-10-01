@@ -1,0 +1,35 @@
+#!/bin/sh
+# Usage: shelly-netcheck [SUBNET]
+#
+# Tells whether this machine can reach the Shelly devices on the local network
+# and, if not, what needs to change. The devices live on the FRITZ!Box guest
+# Wi-Fi "FRITZ!Box guest access" (SUBNET, default $SHELLY_SUBNET), which is
+# isolated from the main network. The user switches Wi-Fi manually.
+#
+# Exit status:
+#   0  ready, prints how many Shelly devices answered
+#   2  this machine has no address on the guest network
+#   3  on the guest network but no device answers, i.e. guest isolation is on
+#      ("Wireless devices may communicate with each other" is off in
+#      FRITZ!Box > Wi-Fi > Guest Access)
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+case ${1:-} in -h | --help) usage_from_header; exit 0 ;; esac
+need curl jq
+
+subnet=${1:-$SHELLY_SUBNET}
+mine=$( (ifconfig 2>/dev/null || ip -4 addr 2>/dev/null) |
+  sed -n 's/.*inet \([0-9.]*\).*/\1/p' |
+  awk -v prefix="$subnet." 'index($0, prefix) == 1 { print; exit }')
+if [ -z "$mine" ]; then
+  echo "not ready: this machine has no address in $subnet.0/24; join the \"FRITZ!Box guest access\" Wi-Fi"
+  exit 2
+fi
+
+count=$("$(dirname "$0")/shelly-scan" "$subnet" | grep -c . || true)
+if [ "$count" -eq 0 ]; then
+  echo "not ready: on the guest network as $mine, but no Shelly device answers; enable \"Wireless devices may communicate with each other\" in FRITZ!Box > Wi-Fi > Guest Access"
+  exit 3
+fi
+echo "ready: on the guest network as $mine, $count Shelly devices answer"
