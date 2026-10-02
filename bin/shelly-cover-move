@@ -8,7 +8,8 @@
 # once the motor's own end stop has cut it, or after 3 s if the motor never
 # drew power (already at that end). With --for, the device itself stops after
 # SECONDS (0.1 or more). Prints each input object plus "moved", "stopped_by"
-# (end, already_at_end, device, timeout), "seconds" and the final "state".
+# (end, already_at_end, device, timeout), "seconds", "peak_w" (the motor's
+# highest power, about 0 if it didn't run) and the final "state".
 #
 # Covers already in motion are refused. This moves physical things: only run
 # it when the user asked for that movement.
@@ -47,14 +48,19 @@ if [ "${1:-}" = --worker ]; then
     exit 1
   fi
 
-  start=$(date +%s) ran=no idle=0 stopped_by=
+  start=$(date +%s) ran=no idle=0 polls=0 seen=no peak=0 stopped_by=
   while [ -z "$stopped_by" ]; do
     sleep 0.2
     status=$(get)
     state=$(printf '%s' "$status" | jq -r '.result.state // "unknown"')
     apower=$(printf '%s' "$status" | jq -r '.result.apower // 0')
-    elapsed=$(($(date +%s) - start))
-    if [ "$state" != "$moving" ] && [ "$state" != unknown ]; then
+    elapsed=$(($(date +%s) - start)) polls=$((polls + 1))
+    if above "$apower" "$peak"; then peak=$apower; fi
+    if [ "$state" = "$moving" ]; then seen=yes; fi
+    # The state can lag a command (it does after Cover.Stop), so a state from
+    # before the movement started must not pass for the device stopping it.
+    if [ "$state" != "$moving" ] && [ "$state" != unknown ] &&
+      { [ "$seen" = yes ] || [ "$polls" -ge 5 ]; }; then
       stopped_by=device
     elif above "$apower" "$RUNNING_W"; then
       ran=yes idle=0
@@ -83,8 +89,8 @@ if [ "${1:-}" = --worker ]; then
   fi
 
   report --arg a "$action" --arg by "$stopped_by" --arg st "$state" \
-    --argjson sec "$(($(date +%s) - start))" \
-    '. + {moved: $a, stopped_by: $by, seconds: $sec, state: $st}'
+    --argjson sec "$(($(date +%s) - start))" --argjson w "$peak" \
+    '. + {moved: $a, stopped_by: $by, seconds: $sec, peak_w: $w, state: $st}'
   case $state in opening | closing | unknown) exit 1 ;; esac
   [ "$stopped_by" != timeout ]
   exit

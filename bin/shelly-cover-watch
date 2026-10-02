@@ -1,0 +1,58 @@
+#!/bin/sh
+# Usage: shelly-cover-watch [--for SECONDS] [--every SECONDS]
+#
+# Watches the cover of every device read from stdin (bare IPs, or JSON lines
+# with "ip") for SECONDS (default 60) and prints a JSON line whenever its
+# state changes or its motor starts or stops drawing power: the input object
+# plus "t" (Unix time, 1/100 s), "state", "motor" (on above 5 W) and
+# "apower". Polls each device every 0.2 s unless --every says otherwise.
+# Lines from several devices interleave in time order, as they happen.
+#
+# Use it to see what devices do while someone uses a wall switch or the app,
+# or during a calibration. It only reads, never moves anything. Watching more
+# than SHELLY_PARALLEL (default 10) devices needs a higher SHELLY_PARALLEL.
+#
+# Example: shelly-scan | jq -c 'select(.name == "Tapparella cucina")' | shelly-cover-watch --for 120
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+IDLE_W=5
+
+if [ "${1:-}" = --worker ]; then
+  for=$2 every=$3 line=$4
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  end=$(($(date +%s) + for)) last=
+  while [ "$(date +%s)" -lt "$end" ]; do
+    row=$(shelly_call "$ip" Cover.GetStatus '{"id":0}' |
+      jq -c --argjson idle "$IDLE_W" 'now as $t | {t: ($t * 100 | floor / 100)} +
+        if .error then {state: "error", error: .error.message}
+        else {state: .result.state, motor: (if (.result.apower // 0) > $idle then "on" else "off" end),
+          apower: .result.apower} end')
+    key=$(printf '%s' "$row" | jq -c '[.state, .motor]')
+    if [ "$key" != "$last" ]; then
+      printf '%s' "$line" | jq -c --argjson r "$row" '. + $r'
+      last=$key
+    fi
+    sleep "$every"
+  done
+  exit
+fi
+
+for=60 every=0.2
+while [ $# -gt 0 ]; do
+  case $1 in
+    --for | --every)
+      [ $# -ge 2 ] || die "$1 needs SECONDS"
+      case $1 in --for) for=$2 ;; --every) every=$2 ;; esac
+      shift 2
+      ;;
+    -h | --help) usage_from_header; exit 0 ;;
+    *) die "unknown option: $1" ;;
+  esac
+done
+case $for in '' | *[!0-9]*) die "--for needs whole seconds, got: $for" ;; esac
+case $every in '' | *[!0-9.]* | .) die "--every needs a number of seconds, got: $every" ;; esac
+need curl jq
+
+shelly_each "$0" --worker "$for" "$every"

@@ -9,7 +9,28 @@ A calibrated cover has `pos_control: true` in `Cover.GetStatus` (`calibrated` in
 
 ## Calibrating
 
-`Cover.Calibrate` starts by going fully open, then travels end to end to learn the open and close travel times. It moves the cover all the way, so get the go-ahead and have the user watch; the user may prefer to start it from the Shelly app themselves. Fix the direction first (shelly-cover-direction skill): a calibration made with reversed wiring is wrong once the direction is fixed.
+`Cover.Calibrate` learns the open and close travel times. It moves the cover all the way, several times, so get the go-ahead; the user may prefer to start it from the Shelly app themselves. Fix the direction first (shelly-cover-direction skill, "Testing the direction"): a calibration made with reversed wiring is wrong once the direction is fixed.
+
+```sh
+bin/shelly-scan | bin/shelly-cover-calibrate | bin/shelly-table name calibrated seconds state pos errors
+```
+
+`bin/shelly-cover-calibrate` starts it on every input device in parallel, waits, and reports `calibrated`, `seconds`, `pos` and `errors`. To see the phases, run `bin/shelly-cover-watch --for 300 --every 0.5` on the same devices in the background.
+
+Before starting, tell the user:
+
+- **Obstruction detection is ignored during a calibration** (Shelly docs), and it's off on these devices anyway. Nothing stops a shutter if something is in the way, so keep door openings ("porta" shutters) and sills clear, and people and pets away.
+- **Don't touch the wall switches or the app until it's done.** Any command aborts it (`cal_abort:ext_command`).
+
+The sequence, per the docs: fully open, fully closed in one run, fully open in one run, closed in steps, open in steps. The covers end fully open at 100%.
+
+All 10 at once, 2026-10-02, firmware 2.0.1: all succeeded, no errors. Windows took 83–95 s and doors 117–121 s. Afterwards:
+
+- `pos_control: true`, state `open`, position 100. One device read `current_pos: null` right at the end and 100 a second later; the tool re-reads once for that.
+- The Shelly app (control.shelly.cloud) showed the position slider at "Opened 100%" for all 10 straight away.
+- `maxtime_open`/`maxtime_close` stayed at 60 s.
+- `obstruction_detection.power_thr` changed from 1000 W to 191–247 W, a little above each shutter's running power (160–220 W), so calibration seems to set it from the measured power. `obstruction_detection.enable` stayed `false`.
+- Calibrated covers stop by themselves at the end and at a target position (shelly-cover-control skill).
 
 ## Uncalibrated covers keep the output on
 
@@ -48,5 +69,4 @@ The iPhone app once showed a "not calibrated" warning for Tapparella studio whil
 
 ## Not verified yet
 
-- The full step sequence of a calibration after the first phase. Observed: it goes open first, then starts closing.
 - Whether the tool could avoid the `open`-state delay (e.g. whether anything changes the state from `open` to `stopped` without moving).

@@ -31,7 +31,7 @@ Refer to each device by its name, with technical details after it in parentheses
 - `ip` comes from DHCP and can change. `mac`/`id` is the stable identity, so re-scan rather than trust an old IP before writing anything.
 - `restart_required` means a config change is waiting for a reboot. The Shelly app shows it as "<name> requires the device to be rebooted". See the shelly-reboot skill.
 - `updates`: `["beta"]` means only a beta is offered, so stable is current.
-- `cover_state` is open, closed, opening, closing, or stopped. `calibrated: false` (`pos_control`) means the cover has no position percentage, only up/down/stop. As of 2026-10-02 no device is calibrated, and the user wants to deal with calibration later.
+- `cover_state` is open, closed, opening, closing, or stopped. `calibrated: false` (`pos_control`) means the cover has no position percentage, only up/down/stop. All 10 were calibrated on 2026-10-02; `calibrated: false` on one of them now means its calibration was lost or thrown away (shelly-cover-calibration skill).
 - `rssi` is in dBm. Around -80 or worse is weak (Tapparella camera ospiti was at -79).
 - `cloud` tells whether the device is connected to Shelly Cloud.
 - `auth` tells whether a device password is set.

@@ -1,0 +1,56 @@
+#!/bin/sh
+# Usage: shelly-cover-jog [--for SECONDS]
+#
+# Jogs the cover of every device read from stdin (bare IPs, or JSON lines
+# with "ip"): closes it for SECONDS (default 2), pauses for a second, then
+# opens it for as long, so someone watching can tell whether it moves the way
+# it's told (down, then up). The device itself can't tell up from down, so
+# this is how to test the direction after wiring work or a change to
+# invert_directions. Prints each input object plus "close_w" and "open_w"
+# (each leg's peak motor power, about 0 if that leg didn't move because the
+# cover was already at that end) and the final "state".
+#
+# Devices jog in parallel; feed one at a time when someone has to tell them
+# apart. Covers already in motion are refused. This moves physical things:
+# only run it when the user asked for it and is watching.
+#
+# Example: shelly-scan | jq -c 'select(.name == "Tapparella studio")' | shelly-cover-jog
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+if [ "${1:-}" = --worker ]; then
+  for=$2 line=$3
+  move=$(dirname "$0")/shelly-cover-move
+  closed=$(printf '%s\n' "$line" | "$move" close --for "$for") || {
+    printf '%s\n' "$closed"
+    exit 1
+  }
+  # Two separate movements are easier to tell apart than an instant reversal,
+  # which is also harder on the motor.
+  sleep 1
+  opened=$(printf '%s\n' "$line" | "$move" open --for "$for") || {
+    printf '%s\n' "$opened" | jq -c --argjson c "$closed" '. + {close_w: $c.peak_w}'
+    exit 1
+  }
+  printf '%s\n' "$opened" | jq -c --argjson c "$closed" \
+    '. as $o | del(.moved, .stopped_by, .seconds, .peak_w) + {close_w: $c.peak_w, open_w: $o.peak_w}'
+  exit
+fi
+
+for=2
+while [ $# -gt 0 ]; do
+  case $1 in
+    --for)
+      [ $# -ge 2 ] || die "--for needs SECONDS"
+      for=$2
+      shift 2
+      ;;
+    -h | --help) usage_from_header; exit 0 ;;
+    *) die "unknown option: $1" ;;
+  esac
+done
+case $for in '' | *[!0-9.]* | .) die "--for needs a number of seconds, got: $for" ;; esac
+need curl jq awk
+
+shelly_each "$0" --worker "$for" || exit 1

@@ -1,0 +1,79 @@
+#!/bin/sh
+# Usage: shelly-cover-calibrate
+#
+# Calibrates the cover of every device read from stdin (bare IPs, or JSON
+# lines with "ip"), in parallel: starts Cover.Calibrate and waits until the
+# calibration has finished or failed. Prints each input object plus
+# "calibrated" (pos_control afterwards), "seconds", the final "state" and
+# "pos", and "errors" (e.g. cal_abort:timeout_open).
+#
+# Each cover runs end to end several times (open, close, open, then close and
+# open again in steps) and is meant to end fully open. Obstruction detection
+# is off during a calibration, so only run it when the user asked for it and
+# the openings are clear. Covers in motion are refused. Gives up waiting after
+# 15 minutes, leaving the device to finish or abort on its own timeouts.
+#
+# Example: shelly-scan | shelly-cover-calibrate | shelly-table name calibrated seconds errors
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+case ${1:-} in -h | --help) usage_from_header; exit 0 ;; esac
+
+if [ "${1:-}" = --worker ]; then
+  line=$2
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  report() { printf '%s' "$line" | jq -c "$@"; }
+  get() { shelly_call "$ip" Cover.GetStatus '{"id":0}'; }
+
+  status=$(get)
+  if printf '%s' "$status" | jq -e .error >/dev/null; then
+    report --argjson s "$status" '. + {calibrated: false, error: $s.error}'
+    exit 1
+  fi
+  state=$(printf '%s' "$status" | jq -r .result.state)
+  case $state in opening | closing | calibrating)
+    report --arg m "cover is $state" '. + {error: {message: $m}}'
+    exit 1
+    ;;
+  esac
+
+  resp=$(shelly_call "$ip" Cover.Calibrate '{"id":0}')
+  if printf '%s' "$resp" | jq -e .error >/dev/null; then
+    report --argjson r "$resp" '. + {calibrated: false, error: $r.error}'
+    exit 1
+  fi
+
+  start=$(date +%s) polls=0 seen=no
+  while :; do
+    sleep 1
+    status=$(get)
+    state=$(printf '%s' "$status" | jq -r '.result.state // "unknown"')
+    polls=$((polls + 1))
+    if [ "$state" = calibrating ]; then seen=yes; fi
+    # Same lag as in shelly-cover-move: a state from before the start doesn't
+    # mean the calibration is over.
+    if [ "$state" != calibrating ] && [ "$state" != unknown ] &&
+      { [ "$seen" = yes ] || [ "$polls" -ge 5 ]; }; then
+      break
+    fi
+    if [ $(($(date +%s) - start)) -ge 900 ]; then break; fi
+  done
+  # Right after a calibration the position can still read null for a moment.
+  if printf '%s' "$status" | jq -e '.result.pos_control and .result.current_pos == null' >/dev/null; then
+    sleep 1
+    status=$(get)
+  fi
+
+  report --argjson s "$status" --argjson sec "$(($(date +%s) - start))" \
+    '. + {calibrated: ($s.result.pos_control // false), seconds: $sec,
+      state: ($s.result.state // "unknown"), pos: $s.result.current_pos,
+      errors: ($s.result.errors // [])}'
+  printf '%s' "$status" | jq -e '.result.pos_control == true and .result.state != "calibrating"' >/dev/null
+  exit
+fi
+
+[ $# -eq 0 ] || die "unknown option: $1"
+need curl jq
+
+shelly_each "$0" --worker || exit 1
