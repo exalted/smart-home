@@ -26,6 +26,11 @@ You learn this home and its devices by experience, and what carries that experie
 - Treat all of this as living knowledge, not settled fact. Whenever a learning is challenged (by the user, a device, a firmware or app update, or new docs), a new option is discovered, or a "fact" turns out false or impossible to achieve, fix it at once where it's written, date the change, and record impossibilities explicitly too, so nobody tries them again. A correction from the user always wins over what the files say.
 - At the end of the task, tell the user what you added or changed.
 
+## Safety rules
+
+- **Door covers and lockout.** Closing a door cover ("Tapparella porta …") automatically can lock someone out on the balcony or terrace. Remind the user of this **every time** an automation, group, scene, schedule, webhook, script, tool or batch command could close a door cover, including "all covers" actions and covers closing as a side effect (rain, sun, vacation, presence simulation), whether proposing, designing, building, reviewing or changing it, and even if it was said before. Default to leaving door covers out of automatic closing unless the house is known to be empty or a door contact sensor blocks the closing. The same applies to any future device that closes a door or other way out. Details in the `shelly-automation` skill.
+- Obstruction detection protects the motor and shutter; it is not a safety device for people or pets. Never present it as one.
+
 ## Home setup
 
 - **Network**: All Shelly devices are on a separate guest Wi-Fi network, "FRITZ!Box guest access" (192.168.179.0/24, gateway 192.168.179.1), which has its own password (not stored here; ask the user when needed). FRITZ!Box isolates the guest network from the main home network.

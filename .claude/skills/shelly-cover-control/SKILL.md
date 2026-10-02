@@ -7,7 +7,7 @@ description: Move Shelly covers (roller shutters, blinds) and stop them, from to
 
 **Rule:** a movement ends when it has done its job (end reached, duration over, position reached) or with an explicit stop. Never leave a cover "opening"/"closing" until the device's timeout ends it. Every tool, script or skill that moves a cover must follow this, ideally by using `bin/shelly-cover-move`.
 
-Only move covers when the user asked for that movement. Name the devices first, and have the user watch when direction or travel matters.
+Only move covers when the user asked for that movement. Name the devices first, and have the user watch when direction or travel matters. Whenever a close includes a door cover ("Tapparella porta …"), e.g. closing all covers, remind the user that someone outside could be locked out (CLAUDE.md, Safety rules).
 
 ## Why it matters
 
