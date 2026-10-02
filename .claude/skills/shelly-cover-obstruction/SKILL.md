@@ -32,7 +32,7 @@ bin/shelly-scan | bin/shelly-cover-config |
   bin/shelly-cover-obstruction on --direction both --action stop --holdoff 1
 ```
 
-`bin/shelly-cover-obstruction on|off` sets only what it's given (the threshold per device from the input field `obstruction_power_thr`, or `--power-thr` for all), reads the settings back and prints them. `bin/shelly-cover-config` shows the current ones. The change needs no reboot (`restart_required: false`, 2026-10-02). It refuses covers in motion.
+`bin/shelly-cover-obstruction on|off` sets only what it's given (the threshold per device from the input field `obstruction_power_thr`, or `--power-thr` for all), reads the settings back and prints them. `bin/shelly-cover-config` shows the current ones. The change needs no reboot (`restart_required: false`, 2026-10-02). It refuses covers in motion. Refresh the backup afterwards (shelly-backup skill).
 
 ## When it trips
 

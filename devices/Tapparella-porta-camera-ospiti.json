@@ -1,0 +1,183 @@
+{
+  "components": [],
+  "config": {
+    "bthome": {},
+    "cloud": {
+      "enable": true,
+      "server": "<redacted>"
+    },
+    "cover:0": {
+      "current_limit": 10.00,
+      "id": 0,
+      "in_locked": false,
+      "in_mode": "dual",
+      "initial_state": "stopped",
+      "invert_directions": true,
+      "maintenance_mode": false,
+      "maxtime_close": 60.00,
+      "maxtime_open": 60.00,
+      "motor": {
+        "idle_confirm_period": 0.25,
+        "idle_power_thr": 2.00
+      },
+      "name": null,
+      "obstruction_detection": {
+        "action": "stop",
+        "direction": "both",
+        "enable": true,
+        "holdoff": 1.00,
+        "power_thr": 220
+      },
+      "power_limit": 2800,
+      "safety_switch": {
+        "action": "stop",
+        "allowed_move": null,
+        "direction": "both",
+        "enable": false
+      },
+      "slat": {
+        "close_time": 1.50,
+        "enable": false,
+        "open_time": 1.50,
+        "precise_ctl": false,
+        "retain_pos": false,
+        "step": 20
+      },
+      "swap_inputs": true,
+      "undervoltage_limit": 0,
+      "voltage_limit": 280
+    },
+    "input:0": {
+      "enable": true,
+      "factory_reset": true,
+      "id": 0,
+      "invert": false,
+      "name": null,
+      "type": "switch"
+    },
+    "input:1": {
+      "enable": true,
+      "factory_reset": true,
+      "id": 1,
+      "invert": false,
+      "name": null,
+      "type": "switch"
+    },
+    "knx": {
+      "enable": false,
+      "ia": "15.15.255",
+      "routing": {
+        "addr": "224.0.23.12:3671"
+      }
+    },
+    "matter": {
+      "enable": false
+    },
+    "mqtt": {
+      "client_id": "shelly2pmg3-<device-id>",
+      "enable": false,
+      "enable_control": true,
+      "enable_rpc": true,
+      "rpc_ntf": true,
+      "server": null,
+      "ssl_ca": null,
+      "status_ntf": false,
+      "topic_prefix": "shelly2pmg3-<device-id>",
+      "use_client_cert": false,
+      "user": null
+    },
+    "sys": {
+      "cfg_rev": 27,
+      "debug": {
+        "file_level": null,
+        "file_log": {
+          "enable": false
+        },
+        "level": 2,
+        "mqtt": {
+          "enable": false
+        },
+        "udp": {
+          "addr": null
+        },
+        "websocket": {
+          "enable": false
+        }
+      },
+      "device": {
+        "addon_type": null,
+        "discoverable": true,
+        "eco_mode": false,
+        "fw_id": "20260923-075759/2.0.1-ge1a198b",
+        "name": "Tapparella porta camera ospiti",
+        "profile": "cover",
+        "tls_check_cert_validity_time": true
+      },
+      "location": {
+        "tz": "Europe/Rome"
+      },
+      "rpc_udp": {
+        "dst_addr": null,
+        "listen_port": null
+      },
+      "sntp": {
+        "server": "time.cloudflare.com"
+      },
+      "ui_data": {}
+    },
+    "wifi": {
+      "ap": {
+        "enable": false,
+        "is_open": true,
+        "range_extender": {
+          "enable": false
+        },
+        "ssid": "<redacted>"
+      },
+      "roam": {
+        "interval": 60,
+        "rssi_thr": -80
+      },
+      "sta": {
+        "enable": true,
+        "gw": null,
+        "ip": null,
+        "ipv4mode": "dhcp",
+        "is_open": false,
+        "nameserver": null,
+        "netmask": null,
+        "ssid": "<redacted>"
+      },
+      "sta1": {
+        "enable": false,
+        "gw": null,
+        "ip": null,
+        "ipv4mode": "dhcp",
+        "is_open": true,
+        "nameserver": null,
+        "netmask": null,
+        "ssid": null
+      }
+    },
+    "ws": {
+      "enable": false,
+      "server": null,
+      "ssl_ca": "ca.pem"
+    }
+  },
+  "gen": 3,
+  "kvs_keys": [],
+  "model": "S3SW-002P16EU",
+  "name": "Tapparella porta camera ospiti",
+  "profile": "cover",
+  "schedules": {
+    "jobs": [],
+    "rev": 1
+  },
+  "scripts": [],
+  "ver": "2.0.1",
+  "webhooks": {
+    "hooks": [],
+    "rev": 1
+  }
+}

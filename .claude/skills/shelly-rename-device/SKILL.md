@@ -28,3 +28,5 @@ A device's name lives in several places that don't sync (see the shelly-naming s
 ## Why this order
 
 Writing on the device first means the canonical copy is right even if the web app step fails halfway. The app step is UI automation in the user's account, so it comes second and is verified against the device.
+
+Afterwards, refresh the backup so `devices/` carries the new names (shelly-backup skill).

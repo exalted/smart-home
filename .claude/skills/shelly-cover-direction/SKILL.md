@@ -49,7 +49,7 @@ Wiring fixes do the same job: swapping the two motor direction wires on O1/O2 eq
 6. The reply is `restart_required: true` and the device **reboots by itself** within a couple of seconds (2PM Gen3, firmware 2.0.1, observed 2026-10-02), so don't reboot it yourself. Reads during that window fail; check again with `bin/shelly-info` and expect a small uptime, `restart_required: false`, and `cloud: true` a few seconds later.
 7. Test the direction with the user watching (next section).
 8. Covers that were calibrated before the flip (`calibrated: true` in `bin/shelly-info`) now have a stale calibration that neither the device nor the app flags. Recalibrate them or make them forget it (shelly-cover-calibration skill). Fix direction before calibrating the others.
-9. Record what you found (which devices were reversed, what fixed them) in CLAUDE.md, and correct this skill where reality differed.
+9. Record what you found (which devices were reversed, what fixed them) in CLAUDE.md, and correct this skill where reality differed. Refresh the backup (shelly-backup skill).
 
 ## Testing the direction
 

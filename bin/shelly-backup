@@ -1,0 +1,80 @@
+#!/bin/sh
+# Usage: shelly-backup
+#
+# Reads the full configuration of every device read from stdin (bare IPs, or
+# JSON lines with "ip") and prints one JSON line per device: the input object
+# plus "backup" with "taken_at" and the results of Shelly.GetDeviceInfo,
+# Shelly.GetConfig, Shelly.GetComponents (dynamic/virtual components, config
+# only), Script.List with each script's code, Schedule.List, Webhook.List and
+# KVS.GetMany. It only reads.
+#
+# The output identifies the device and the home (MAC, location, cloud server)
+# and scripts or KVS values may hold secrets: keep it out of git (backups/ is
+# git-ignored) and publish only what shelly-backup-sanitize makes of it.
+# Not included, because devices don't reveal them: Wi-Fi passwords and the
+# calibration (a replacement device needs a new one).
+#
+# Example: shelly-scan | shelly-backup > backups/$(date +%F).jsonl
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+case ${1:-} in -h | --help) usage_from_header; exit 0 ;; esac
+
+if [ "${1:-}" = --worker ]; then
+  line=$2
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  failed=no
+  # Prints the result, or {"error": ...} and remembers that something failed.
+  get() {
+    resp=$(shelly_call "$ip" "$1" "${2:-null}")
+    if printf '%s' "$resp" | jq -e .error >/dev/null; then failed=yes; fi
+    printf '%s' "$resp" | jq -c 'if .error then {error} else .result end'
+  }
+  # Fetches every page of a paginated list method into one array.
+  get_all() {
+    method=$1 params=$2 key=$3 offset=0 all='[]'
+    while :; do
+      page=$(get "$method" "$(printf '%s' "$params" | jq -c --argjson o "$offset" '. + {offset: $o}')")
+      if printf '%s' "$page" | jq -e .error >/dev/null; then printf '%s' "$page"; return; fi
+      all=$(jq -nc --argjson a "$all" --argjson p "$page" --arg k "$key" '$a + $p[$k]')
+      offset=$(printf '%s' "$all" | jq length)
+      [ "$offset" -lt "$(printf '%s' "$page" | jq '.total // 0')" ] || break
+    done
+    printf '%s' "$all"
+  }
+
+  info=$(get Shelly.GetDeviceInfo)
+  config=$(get Shelly.GetConfig)
+  components=$(get_all Shelly.GetComponents '{"include":["config"],"dynamic_only":true}' components)
+  kvs=$(get_all KVS.GetMany '{}' items)
+  schedules=$(get Schedule.List)
+  webhooks=$(get Webhook.List)
+  scripts=$(get Script.List)
+  code='{}'
+  for id in $(printf '%s' "$scripts" | jq -r '.scripts[]?.id'); do
+    text='""' offset=0
+    while :; do
+      chunk=$(get Script.GetCode "{\"id\":$id,\"offset\":$offset}")
+      printf '%s' "$chunk" | jq -e .error >/dev/null && break
+      text=$(jq -nc --argjson t "$text" --argjson c "$chunk" '$t + $c.data')
+      offset=$((offset + $(printf '%s' "$chunk" | jq '.data | utf8bytelength')))
+      [ "$(printf '%s' "$chunk" | jq '.left // 0')" -gt 0 ] || break
+    done
+    code=$(jq -nc --argjson c "$code" --arg id "$id" --argjson t "$text" '$c + {($id): $t}')
+  done
+
+  printf '%s' "$line" | jq -c --argjson info "$info" --argjson config "$config" \
+    --argjson components "$components" --argjson kvs "$kvs" \
+    --argjson schedules "$schedules" --argjson webhooks "$webhooks" \
+    --argjson scripts "$scripts" --argjson code "$code" \
+    '. + {backup: {taken_at: (now | todate), device_info: $info, config: $config,
+      components: $components, scripts: ($scripts | .scripts? // . | if type == "array"
+        then map(. + {code: $code[(.id | tostring)]}) else . end),
+      schedules: $schedules, webhooks: $webhooks, kvs: $kvs}}'
+  [ "$failed" = no ]
+  exit
+fi
+need curl jq
+
+shelly_each "$0" --worker || exit 1

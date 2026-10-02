@@ -1,0 +1,28 @@
+#!/bin/sh
+# Usage: shelly-split DIR
+#
+# Writes each JSON line from stdin to DIR/<name>.json, pretty-printed with
+# sorted keys so that files diff well in git. <name> is the line's "name"
+# (spaces become hyphens), or its "ip" when it has no name. Prints one line
+# per file: {"name", "file"}.
+#
+# Example: shelly-backup-sanitize < backups/2026-10-02.jsonl | shelly-split devices
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+case ${1:-} in
+  -h | --help) usage_from_header; exit 0 ;;
+  '') die "usage: shelly-split DIR" ;;
+esac
+need jq
+dir=$1
+mkdir -p "$dir"
+
+while IFS= read -r line; do
+  [ -n "$line" ] || continue
+  base=$(printf '%s' "$line" | jq -r '(.name // .ip // empty) | gsub("[^A-Za-z0-9._-]+"; "-")')
+  [ -n "$base" ] || die "line has neither name nor ip"
+  printf '%s' "$line" | jq -S . > "$dir/$base.json"
+  jq -nc --arg n "$(printf '%s' "$line" | jq -r '.name // .ip')" --arg f "$dir/$base.json" '{name: $n, file: $f}'
+done

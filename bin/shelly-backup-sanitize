@@ -1,0 +1,81 @@
+#!/bin/sh
+# Usage: shelly-backup-sanitize
+#
+# Turns shelly-backup lines (stdin) into lines that are safe to publish, e.g.
+# in a public git repository: per device "name", "model", "gen", "ver",
+# "profile", and the backed-up config, components, schedules and webhooks,
+# with what identifies the device or the home taken out:
+#
+#   - the device's MAC/ID wherever it appears (also inside MQTT IDs and the
+#     setup Wi-Fi name) becomes "<device-id>"
+#   - sys.device.mac and the location's latitude/longitude are dropped, and
+#     so are the BLE settings and sys.device.enhanced_security, which belong
+#     to the security posture (CLAUDE.md, "Publishing")
+#   - Wi-Fi SSIDs and static IP settings, the cloud, MQTT and WebSocket
+#     servers, and values of keys that look like credentials become
+#     "<redacted>"; URLs become "<url>" and private IPv4 addresses "<ip>"
+#   - scripts keep only id, name and enable (code may hold secrets), KVS only
+#     its keys
+#
+# As a last check it refuses (exit 1, nothing printed for that device) any
+# result that still contains a MAC-like value. Review the output anyway
+# before committing it.
+#
+# Example: shelly-backup-sanitize < backups/2026-10-02.jsonl | shelly-split devices
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+case ${1:-} in -h | --help) usage_from_header; exit 0 ;; esac
+need jq
+
+status=0
+while IFS= read -r line; do
+  [ -n "$line" ] || continue
+  out=$(printf '%s' "$line" | jq -c '
+    .backup as $b
+    | ($b.device_info.mac // "" | ascii_downcase) as $mac
+    | ($mac | [scan("..")] | join(":")) as $colon
+    | def scrub:
+        if $mac == "" then .
+        else gsub("(?i)" + $mac; "<device-id>") | gsub("(?i)" + $colon; "<device-id>") end
+        | gsub("[a-zA-Z][a-zA-Z0-9+.-]*://[^\\s\"]*"; "<url>")
+        | gsub("\\b(10|127)\\.\\d+\\.\\d+\\.\\d+|\\b192\\.168\\.\\d+\\.\\d+|\\b172\\.(1[6-9]|2\\d|3[01])\\.\\d+\\.\\d+"; "<ip>");
+      def redact: if . == null then . else "<redacted>" end;
+      def red(k): if has(k) then .[k] |= redact else . end;
+      def clean:
+        walk(if type == "object" then
+               with_entries(if (.key | test("(?i)^(pass|password|pwd|psk|token|secret|api_?key|user|username|auth_?key)$|pass|token|secret"))
+                              and (.value | type) == "string"
+                            then .value = "<redacted>" else . end)
+             elif type == "string" then scrub
+             else . end);
+      {
+        name: ($b.config.sys.device.name // .name),
+        model: $b.device_info.model, gen: $b.device_info.gen,
+        ver: $b.device_info.ver, profile: $b.device_info.profile,
+        config: ($b.config
+          | del(.sys.device.mac, .sys.location.lat, .sys.location.lon, .sys.device.enhanced_security, .ble)
+          | if .wifi then
+              .wifi |= (with_entries(if (.value | type) == "object" and (.value | has("ssid"))
+                then .value |= (red("ssid") | red("ip") | red("netmask") | red("gw") | red("nameserver"))
+                else . end))
+            else . end
+          | if .cloud then .cloud |= red("server") else . end
+          | if .mqtt then .mqtt |= (red("server") | red("user")) else . end
+          | if .ws then .ws |= red("server") else . end),
+        components: $b.components,
+        scripts: ($b.scripts | if type == "array" then map({id, name, enable}) else . end),
+        schedules: $b.schedules, webhooks: $b.webhooks,
+        kvs_keys: ($b.kvs | if type == "array" then map(.key) else . end)
+      }
+      | clean')
+  if printf '%s' "$out" | grep -E -i -q '([0-9a-f]{2}[:-]){5}[0-9a-f]{2}|(^|[^0-9a-z])[0-9a-f]{12}([^0-9a-z]|$)|"(lat|lon)":'; then
+    printf '%s: refusing %s, it still looks like it holds a MAC or a location\n' \
+      "${0##*/}" "$(printf '%s' "$out" | jq -r .name)" >&2
+    status=1
+    continue
+  fi
+  printf '%s\n' "$out"
+done
+exit "$status"

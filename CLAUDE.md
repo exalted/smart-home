@@ -76,13 +76,16 @@ bin/shelly-scan | bin/shelly-info | bin/shelly-table name ip restart_required co
 | `bin/shelly-cover-obstruction on\|off [--direction ...] [--action ...] [--power-thr W] [--holdoff S]` | Turns obstruction detection on or off and sets its options; threshold per device from the input field `obstruction_power_thr` | `shelly-cover-obstruction` |
 | `bin/shelly-cover-forget-calibration [--all]` | Makes calibrated covers forget their calibration (start Cover.Calibrate, then Cover.Stop until stopped); moves the cover briefly | `shelly-cover-calibration` |
 | `bin/shelly-rpc METHOD [PARAMS_JSON]` | Calls any Gen2+ RPC method on every input device in parallel | `shelly-rpc` |
+| `bin/shelly-backup` | Reads each device's full configuration (config, components, scripts, schedules, webhooks, KVS) as one JSON line; output holds identifying data, so it goes to the git-ignored `backups/` | `shelly-backup` |
+| `bin/shelly-backup-sanitize` | Turns backup lines into publishable ones (no MAC/ID, location, SSIDs, servers, credentials, script code); refuses anything that still looks like a MAC or location | `shelly-backup` |
+| `bin/shelly-split DIR` | Writes each JSON line to `DIR/<name>.json`, pretty and sorted, e.g. the sanitized profiles into `devices/` | `shelly-backup` |
 | `bin/shelly-reboot [--force] [--no-wait]` | Reboots devices, skipping covers in motion, and waits until they're back | `shelly-reboot` |
 | `bin/shelly-name-check [NAME...]` | Validates names against the house rules (ASCII letters/digits/spaces, ≤ 32 bytes, unique) | `shelly-naming` |
 | `bin/shelly-set-name HOST NAME` | Writes and reads back the on-device name; batch mode reads JSON lines with `ip`, `new_name`, optional `mac` guard | `shelly-rename-device` |
 
 Environment: `SHELLY_SUBNET` (default `192.168.179`), `SHELLY_PASSWORD` (for devices with a password; user is `admin`), `SHELLY_PARALLEL` (default 10), `SHELLY_TIMEOUT` (seconds, default 5). Lint with `shellcheck bin/* lib/*` (settings in `.shellcheckrc`).
 
-Put temporary files (scan results, browser captures) in `.scratch/`, which is git-ignored. The Chrome DevTools MCP can only write files inside the project, not in `/tmp`.
+Put temporary files (scan results, browser captures) in `.scratch/`, which is git-ignored. Full device backups go to `backups/` (git-ignored) and their sanitized copies to `devices/` (tracked); after any task that changes device settings, refresh both (`shelly-backup` skill). The Chrome DevTools MCP can only write files inside the project, not in `/tmp`.
 
 ## Skills
 
@@ -98,6 +101,7 @@ Project skills in `.claude/skills/`:
 - `shelly-cover-obstruction`: obstruction detection, its threshold, and forcing a cover after a false alarm (also remotely)
 - `shelly-naming`: naming convention and where names live (device, Shelly app, Matter, Apple Home, Home Assistant, Alexa/Google, DIRIGERA)
 - `shelly-rename-device`: renaming end to end, on the device and in the Shelly app
+- `shelly-backup`: backing up all device settings (local full copy, sanitized copy in `devices/`), refreshing it after every settings change, replacing a failed device
 - `shelly-cloud-web-app`: driving control.shelly.cloud with the Chrome DevTools MCP (login hand-off, device list, cloud data, Edit device)
 
 ## Git
@@ -113,4 +117,4 @@ This repository may be published (e.g. on GitHub), so treat every commit as publ
 - the home's own network details beyond the FRITZ!Box defaults (the main Wi-Fi name, the router model and IP)
 - the security posture (which devices have no password, what is reachable from where, and when)
 
-Keep such details in `CLAUDE.local.md`, which is git-ignored and loads into every session anyway. Being ignored, it's exactly what `git clean -x`/`-X` deletes, so never run those here; the user's `git clean` wrapper (in their dotfiles) always keeps it and `.claude/`, but `command git clean` bypasses the wrapper. In tracked files, refer to devices by name and use placeholders like `<device-id>` in examples. Tool output, captures and screenshots stay in `.scratch/`. Before every commit, review the staged diff for such details (e.g. `git diff --cached | grep -i -E 'b08184|password|token'`; `b08184` is the Shelly MAC prefix). If something slips into a commit, rewrite the history to remove it, then purge the old copies (backup refs, reflog, `git gc --prune=now`) and confirm with `git cat-file --batch-all-objects --batch | grep ...` that it's gone. History was scrubbed this way on 2026-10-02.
+Keep such details in `CLAUDE.local.md`, which is git-ignored and loads into every session anyway. Full device backups (`backups/`) are git-ignored for the same reason; only their sanitized copies in `devices/` are committed. Being ignored, `CLAUDE.local.md` and `backups/` are exactly what `git clean -x`/`-X` deletes, so never run those here; the user's `git clean` wrapper (in their dotfiles) always keeps `CLAUDE.local.md` and `.claude/`, but `command git clean` bypasses the wrapper. In tracked files, refer to devices by name and use placeholders like `<device-id>` in examples. Tool output, captures and screenshots stay in `.scratch/`. Before every commit, review the staged diff for such details (e.g. `git diff --cached | grep -i -E 'b08184|password|token'`; `b08184` is the Shelly MAC prefix). If something slips into a commit, rewrite the history to remove it, then purge the old copies (backup refs, reflog, `git gc --prune=now`) and confirm with `git cat-file --batch-all-objects --batch | grep ...` that it's gone. History was scrubbed this way on 2026-10-02.
