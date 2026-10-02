@@ -1,6 +1,6 @@
 ---
 name: shelly-cloud-web-app
-description: Drive the Shelly Control web app (control.shelly.cloud) with the Chrome DevTools MCP. Covers the login hand-off, navigating rooms and the device list, opening a device, reading cloud-only data (app device names, rooms, IDs, IPs) from the get_all_lists response, and renaming a device through "Edit device". Use whenever you need data only the Shelly cloud/app holds (app names, rooms, groups, scenes), need to change something in the Shelly app, or local network access isn't available.
+description: Drive the Shelly Control web app (control.shelly.cloud) with the Chrome DevTools MCP. Covers the login hand-off, navigating rooms, groups, scenes and the device list, opening a device, reading cloud-only data (app device names, rooms, IDs, IPs) from the get_all_lists response, renaming a device through "Edit device", and not trusting a stale device panel. Use whenever you need data only the Shelly cloud/app holds (app names, rooms, groups, scenes), need to change something in the Shelly app, or local network access isn't available.
 ---
 
 # Shelly Control web app (control.shelly.cloud)
@@ -35,8 +35,11 @@ To read it:
 - The bottom bar has Dashboard, My home, Energy, Settings, Assistant, and Add device.
 - "My home" has these tabs: All Rooms (`#/home/rooms/-1`), All Groups, All Scenes, All Devices (`#/home/devices/-1`), All Thermostats, Alarms. After some actions the app jumps to a room page (`#/home/room/<room_id>/devices`) where the tabs are missing. Use `location.hash = '#/home/devices/-1'` to get back.
 - Each device card shows the name, power, and voltage, plus **Up and Down arrow buttons that move the blind**. To open a device, click its name element (a `<p>` holding exactly the name), not the card's center or the arrows.
-- The right-hand panel lists notifications, each with a **"Reboot" button that reboots that device**. Don't click it by accident.
-- The opened device panel shows "Edit device" and the main controls (Open/Close also move the blind).
+- The right-hand panel lists notifications, each with a **"Reboot" button that reboots that device**. Don't click it by accident. Its "Actively consuming devices" list shows covers while their motor runs, whatever moved them (the iPhone app, a wall switch, an automation). If one appears that you didn't move, don't guess why; ask the user.
+- The opened device panel shows "Edit device" and the main controls (Open/Close also move the blind). Its left column of unlabeled icon buttons switches sections; seen so far: calendar = Schedule (device schedules), shield = Safety (obstacle detection, protections).
+- **An open device panel doesn't refresh its settings forms.** On 2026-10-02 a panel left open since before obstruction detection was turned on still showed it off with a 100 W threshold, while the device had it on at 226 W; reopening the device showed the real values. Reopen the device (or reload) before reading a form, and never press a form's Save on a panel that may be stale, since it would write the old values back.
+- Other pages: All Groups `#/home/groups/-1`, All Scenes `#/home/scenes/-1`, a room `#/home/room/<room_id>/devices` (tabs Devices, Groups, Scenes, Thermostats). What the group, scene and schedule wizards offer is in the shelly-automation skill. The wizards keep everything in the page until their final Save (adding a scene condition sent no request); the X asks "Exit without saving?".
+- Clicking: the tab buttons and most wizard controls respond to `click` on a snapshot uid. Wizard choices are often an `<input type=checkbox>` inside a label, so from `evaluate_script` click the input whose label text matches; some labels aren't plain leaf elements.
 
 ## Renaming a device in the app
 
@@ -87,3 +90,4 @@ Do the first device alone and verify it before running a batch. Afterwards, chec
 
 - Don't call the cloud's internal endpoints directly with `fetch`. The app bundle also contains `device/factory_reset`, `device/erase_data`, and `device/delete`. Going through the UI is safer and keeps every change visible to the user.
 - Don't click "Reboot", the arrows, Open/Close, or the "Hidden Devices" room unless that's the task.
+- Don't save a scene that moves covers with "Execute the scene on save or edit" left on (the default): the covers move immediately.

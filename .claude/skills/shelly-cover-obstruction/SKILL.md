@@ -48,7 +48,7 @@ Observed on Tapparella porta soggiorno with a test threshold of 100 W, 2026-10-0
 2. If it keeps stopping after about a second, turn detection off on that device in the Shelly app: device → Safety (shield) → Obstacle detection → untick Enable → Save. This works through the cloud and took effect at once without a reboot (done from control.shelly.cloud, 2026-10-02). Then move it normally.
 3. Back home, look for the cause and turn detection on again with the tool (or raise that device's threshold).
 
-The app's form shows the values the cloud has, which can be stale: after the calibration it showed 1000 W for a device that had 194 W, until a later `Cover.SetConfig` updated it. Saving writes the whole form, so check the threshold there before saving, or fix it with the tool afterwards.
+The app's form shows the values the cloud has, which can be stale: after the calibration it showed 1000 W for a device that had 194 W, until a later `Cover.SetConfig` updated it. Saving writes the whole form, so check the threshold there before saving, or fix it with the tool afterwards. A device panel left open also keeps the values it loaded: on 2026-10-02 one showed detection off at 100 W while the device had it on at 226 W, and reopening the device showed the right values. So reopen the device right before reading or saving the form.
 
 ## Rehearsing a false alarm
 
