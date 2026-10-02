@@ -79,6 +79,8 @@ Steps: **Week days → Time → Action → Preview**, each in "Simple" or "Advan
 
 Not seen in the wizard: a month field, `@random`, or an enable/disable toggle (they exist in the API; the app may show them on an existing schedule). Not saved yet, so the exact `Schedule.Create` the app sends is unknown; its code writes sun jobs as `@sunrise+<h>h<mm>m <day> <month> <weekdays>`. The schedule list shows a toggle per job, and only parses timespecs in its own format: one job it can't parse makes the whole page spin forever (2026-10-02; details in the shelly-scripts skill).
 
+An existing job's pencil opens "Edit schedule" with the same four steps, prefilled (2026-10-02, a script job on Tapparella cucina): Week days ticked, Time "Sunrise / Sunset" 00h 01min After Sunrise, and under Action, "Local action:" rows named "<Method> ID: <id>" (e.g. "Script.Eval ID: 2"). The pencil on those rows is disabled, so a script call's arguments can't be seen or edited there. Its X asks "Exit Without Saving?"; "Exit without saving" sends nothing.
+
 ## Other device panel sections
 
 Icons down the left of the device panel; known so far: calendar = Schedule, shield = Safety (obstacle detection and protections). Unexplored: the link icon (presumably Actions/webhooks), the `{}` icon (presumably Scripts), the cube (presumably virtual components).

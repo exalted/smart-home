@@ -19,6 +19,7 @@ Reference files in this folder: [app-ui.md](app-ui.md) (what the Shelly app's gr
 - **No alarm devices or thermostats, and none planned.** Ignore the app's Alarm-based conditions, Alarm actions, the Alarms tab, and the Thermostat group type and tab.
 - **Current automations** are listed in CLAUDE.md (Home setup, Automations); the first, `kitchen-morning`, went in on 2026-10-02. Check there and in the device backups before adding one, so they don't fight (see "Several automations together").
 - **Scripts are generic and composable**, one job each, specifics passed as arguments: reuse or compose what's in `scripts/` before writing a new one (shelly-scripts skill).
+- **A script automation's values are hidden from the household** (2026-10-02). The arguments (positions, times) live only in the device's schedule jobs. The Shelly app shows such a job as just "Script.start / Script.eval" with an on/off toggle. Only the device's own web UI shows the values, read-only, and changing them takes a local session over RPC (shelly-scripts skill, "Where an automation's arguments live"). Say so when proposing a script-based automation. If someone at home should be able to tune a value, weigh a plain cover schedule instead; the app presumably shows and edits its position, but that's unverified for an existing job.
 - The user also moves covers from the Shelly iPhone app. When a cover moves and you didn't command it, don't assume who or what did it; ask the user (CLAUDE.md, Cloud).
 
 ## The building blocks
