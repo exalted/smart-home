@@ -23,6 +23,7 @@ You learn this home and its devices by experience, and what carries that experie
 - Turn repeatable steps into tools, Unix style: when you find yourself running the same commands or pipeline again, or a skill describes steps a script could do, write a small `bin/` tool that does one thing well and follows the conventions under Tools below (devices as JSON lines in and out, shared code in `lib/shelly.sh`, clean `shellcheck`). Prefer a new tool, or an option on an existing one, over a tool that does several jobs. Tie each tool to the skill that explains when and why to use it, both in the skill and in the Tools table.
 - Mark what isn't verified yet (e.g. taken from the docs but not tried on these devices), and replace it with what you observed once you have. Date your observations.
 - Correct or remove what turns out wrong or outdated, so the files stay accurate rather than just growing.
+- Treat all of this as living knowledge, not settled fact. Whenever a learning is challenged (by the user, a device, a firmware or app update, or new docs), a new option is discovered, or a "fact" turns out false or impossible to achieve, fix it at once where it's written, date the change, and record impossibilities explicitly too, so nobody tries them again. A correction from the user always wins over what the files say.
 - At the end of the task, tell the user what you added or changed.
 
 ## Home setup
