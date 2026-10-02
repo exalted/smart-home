@@ -77,7 +77,7 @@ Steps: **Week days → Time → Action → Preview**, each in "Simple" or "Advan
 - Action: "You can add up to 5 actions." → Add local action: **Open Cover, Close Cover, Stop Cover, Move Cover to specific position**.
 - Preview: "Execute schedule on Mon-Sun; at 00:00:00 / Sunrise; Action ...".
 
-Not seen in the wizard: a month field, `@random`, or an enable/disable toggle (they exist in the API; the app may show them on an existing schedule). Not saved yet, so the exact `Schedule.Create` the app sends is unknown.
+Not seen in the wizard: a month field, `@random`, or an enable/disable toggle (they exist in the API; the app may show them on an existing schedule). Not saved yet, so the exact `Schedule.Create` the app sends is unknown; its code writes sun jobs as `@sunrise+<h>h<mm>m <day> <month> <weekdays>`. The schedule list shows a toggle per job, and only parses timespecs in its own format: one job it can't parse makes the whole page spin forever (2026-10-02; details in the shelly-scripts skill).
 
 ## Other device panel sections
 

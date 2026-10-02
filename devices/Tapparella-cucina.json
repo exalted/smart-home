@@ -202,7 +202,7 @@
         ],
         "enable": true,
         "id": 1,
-        "timespec": "@sunrise+1m"
+        "timespec": "@sunrise+0h1m * * *"
       },
       {
         "calls": [
@@ -225,7 +225,7 @@
         "timespec": "0 1 7 * * *"
       }
     ],
-    "rev": 9
+    "rev": 10
   },
   "scripts": [
     {

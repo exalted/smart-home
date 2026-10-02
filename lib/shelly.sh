@@ -70,3 +70,16 @@ shelly_call() {
     *) jq -nc --arg c "$code" --arg b "$resp" '{error: {message: "HTTP \($c)", body: $b}}' ;;
   esac
 }
+
+# The Shelly app's schedule page (web and phone, app 3.77.24) crashes into an
+# endless spinner if any job's timespec doesn't match its own parser, ported
+# here: six fields, numeric months, weekdays only as comma lists, sun offsets
+# as +<h>h<m>m (e.g. "@sunrise+0h1m * * *", never "@sunrise+1m").
+shelly_app_timespec_ok() {
+  sec='([1-5]?[0-9])' hour='([0-9]|1[0-9]|2[0-3])' date='([1-9]|[12][0-9]|3[01])'
+  month='([1-9]|1[0-2])' dow='(SUN|MON|TUE|WED|THU|FRI|SAT|[0-6])'
+  S="($sec([-,]$sec){0,59}|\\*)" H="($hour([-,]$hour){0,23}|\\*)"
+  D="($date([-,]$date){0,30}|\\*)" M="($month([-,]$month){0,11}|\\*)" W="($dow(,$dow){0,6}|\\*)"
+  sun='@(sunrise|sunset)([+-](0?[0-9]|1[0-2])h((0?[0-9]|[0-5][0-9])[mh])?)?'
+  printf '%s\n' "$1" | grep -E -q "^($sun|$S +$S +$H) +$D +$M +$W\$"
+}

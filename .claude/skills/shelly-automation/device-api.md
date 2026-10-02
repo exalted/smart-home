@@ -21,10 +21,12 @@ Cover (`cover:0`), two inputs, Virtual components, BTHome components, Matter (of
 
 Timespec, 5, 6 or 7 fields: `[sec] min hour day-of-month month day-of-week [year]`. Ranges 0–59, 0–59, 0–23, 1–31, 1–12, 0–7 (0 and 7 = Sunday), 1970–2199. `*`, lists `,`, ranges `-`, steps `/`, `?`, `L`, `W`, `#`; names `MON`–`SUN`, `JAN`–`DEC`; `@yearly`, `@monthly`, `@weekly`, `@daily`, `@hourly`.
 
-- `0 0 14 * MAY-SEP *`: 14:00 daily, May to September
-- `0 0 8 * * MON-FRI`: weekdays at 08:00
-- `@sunrise`, `@sunrise+30m`, `@sunset-1h30m`, `@sunrise * * MON-FRI`, `@sunset * NOV-FEB *`: sunrise/sunset, offset up to ±12 h (units h, m, s), optional day-of-month, month and day-of-week fields. Needs `sys.location` lat/lon and timezone.
-- `@random:{"from":"0 0 19 * * *","to":"0 0 21 * * *","number":1}`: N random times between two cron points.
+**The device accepts more than the Shelly app can parse, and a job the app can't parse makes that device's Schedule page in the app never load** (observed 2026-10-02). Use only the app's forms, shown here first; the device-only forms in parentheses mean the same:
+
+- `0 0 14 * 5-9 *`: 14:00 daily, May to September (`0 0 14 * MAY-SEP *`)
+- `0 0 8 * * MON,TUE,WED,THU,FRI`: weekdays at 08:00 (`0 0 8 * * MON-FRI`)
+- `@sunrise * * *`, `@sunrise+0h30m * * *`, `@sunset-1h30m * * *`, `@sunrise * * MON,TUE,WED,THU,FRI`, `@sunset * 11,12,1,2 *`: sunrise/sunset, offset up to ±12 h, written `<h>h<m>m` (device-only: `@sunrise+30m`, offsets in s, the trailing fields left out). Needs `sys.location` lat/lon and timezone.
+- `@random:{"from":"0 0 19 * * *","to":"0 0 21 * * *","number":1}`: N random times between two cron points. Device only: the app can't parse it.
 - Times are in the device's timezone. DST: a job in the skipped hour doesn't fire; one in the repeated hour fires once.
 - A schedule has **no condition**: it always runs its calls. For conditional behavior use a script.
 - `Schedule.Eval {"timespec", "now"}` returns the `prev` and `next` fire times without creating a job. Observed 2026-10-02 on 2.0.1: `prev` excludes `now` itself, and sunrise/sunset come at minute resolution. Scripts use it to ask "has sunrise / 07:00 happened today?" (shelly-scripts skill).

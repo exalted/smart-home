@@ -8,8 +8,13 @@
 # installed already (shelly-script-put). An identical job is not created
 # twice. Prints each input object plus "schedule_id" and "created".
 #
+# TIMESPEC must be one the Shelly app can parse, or the device's schedule
+# page in the app never loads: six fields, numeric months ("5-9"), weekdays
+# as comma lists ("MON,TUE"), sun offsets as "+0h1m" with the three trailing
+# fields ("@sunrise+0h1m * * *").
+#
 # Example:
-#   echo 192.168.179.4 | shelly-schedule-exec '@sunrise+1m' daily-once \
+#   echo 192.168.179.4 | shelly-schedule-exec '@sunrise+0h1m * * *' daily-once \
 #     '{"key":"kitchen-morning","after":["@sunrise","0 0 7 * * *"],"then":[]}'
 
 set -eu
@@ -51,6 +56,8 @@ fi
 case ${1:-} in -h | --help) usage_from_header; exit 0 ;; esac
 [ $# -eq 2 ] || [ $# -eq 3 ] || { usage_from_header >&2; exit 2; }
 need curl jq
+shelly_app_timespec_ok "$1" ||
+  die "the Shelly app can't parse timespec \"$1\" (its schedule page would never load); see --help"
 args=${3:-'{}'}
 printf '%s' "$args" | jq -e 'type == "object"' >/dev/null 2>&1 || die "ARGS_JSON is not a JSON object: $args"
 

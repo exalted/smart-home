@@ -36,7 +36,7 @@ Why not resident scripts with events (`Shelly.emitEvent`): each would take one o
 | `cover-clamp` | Keep a cover within `[min, max]`: lower to max if more open, raise to min if more closed; leave it alone while it moves (someone is using it) or when the position is unknown | `{"id": 0, "min": n, "max": n}` (id defaults to 0, each bound optional) | no |
 | `daily-once` | Run `then` once a day as soon as every timespec in `after` has fired today; record the day and each call's result in KVS `daily-once.<key>`; at boot, re-run its own schedule jobs (catch-up, safe because each key runs once a day) | `{"key": "...", "after": ["@sunrise", "0 0 7 * * *"], "then": [{"script": "cover-clamp", "args": {...}} or {"method": "...", "params": {...}}]}` | yes |
 
-`daily-once` must be started a minute **after** each `after` time (e.g. jobs `@sunrise+1m` and `0 1 7 * * *`), because `Schedule.Eval`'s `prev` excludes the current second.
+`daily-once` must be started a minute **after** each `after` time (e.g. jobs `@sunrise+0h1m * * *` and `0 1 7 * * *`), because `Schedule.Eval`'s `prev` excludes the current second. The `after` timespecs themselves are only evaluated, never stored as jobs, so any form the device accepts works there.
 
 ## Tools
 
@@ -46,7 +46,7 @@ bin/shelly-scan | jq -c 'select(.name == "Tapparella cucina")' > .scratch/dev.js
 bin/shelly-script-put scripts/cover-clamp.js < .scratch/dev.jsonl
 bin/shelly-script-put --boot scripts/daily-once.js < .scratch/dev.jsonl
 # schedule a run with arguments (no duplicate if the same job exists)
-bin/shelly-schedule-exec '@sunrise+1m' daily-once '{"key":"kitchen-morning","after":["@sunrise","0 0 7 * * *"],"then":[{"script":"cover-clamp","args":{"max":35}}]}' < .scratch/dev.jsonl
+bin/shelly-schedule-exec '@sunrise+0h1m * * *' daily-once '{"key":"kitchen-morning","after":["@sunrise","0 0 7 * * *"],"then":[{"script":"cover-clamp","args":{"max":35}}]}' < .scratch/dev.jsonl
 # what happened on the last run
 bin/shelly-rpc KVS.Get '{"key":"daily-once.kitchen-morning"}' < .scratch/dev.jsonl
 ```
@@ -65,9 +65,17 @@ Test the trigger and every branch, not just the action (this is how kitchen-morn
 
 Warn the user before each test that moves a cover, and the door-cover rule applies (shelly-automation skill).
 
+## The Shelly app and script jobs
+
+Observed 2026-10-02 in the web app 3.77.24 (the iPhone app showed the same symptom):
+
+- **The device's Schedule page never loads (endless spinner) if any job's timespec doesn't match the app's own parser**: it crashes on that job instead of skipping it. The parser wants six fields (`sec min hour day month weekday`) or `@sunrise`/`@sunset` with an optional `+<h>h<m>m` offset **and** the three trailing fields; months as numbers (`5-9`, not `MAY-SEP`), weekdays as comma lists (`MON,TUE,WED,THU,FRI`, not `MON-FRI`), no `@random`. So `@sunrise+0h1m * * *`, never `@sunrise+1m`. `bin/shelly-schedule-exec` refuses other forms (check: `shelly_app_timespec_ok` in `lib/shelly.sh`, ported from the app's code).
+- Script jobs aren't tied to the cover, so the page says "No schedules registered" until "Show schedules for all device channels" is turned on. Then each shows as "script:<id>", its days, "Script.start", "Script.eval" and the time (e.g. "Sunrise +00:01").
+- Each job's toggle only sends `Schedule.Update` with `enable`, so it is a safe way for the user to pause an automation. Don't use the job's pencil: the app rebuilds the timespec in its own format when saving, and what it does with the script calls is untested.
+
 ## Engine facts (firmware 2.0.1, observed 2026-10-02 on Tapparella cucina)
 
-- `Schedule.Eval {"timespec", "now"}` returns `prev`/`next` Unix times using the device's timezone, DST and location. `prev` **excludes** `now` itself: at exactly 07:00:00 the prev of `0 0 7 * * *` is yesterday's. Sunrise/sunset come at minute resolution (e.g. 07:10:00). `@sunrise+1m` is accepted by `Schedule.Eval` and `Schedule.Create`.
+- `Schedule.Eval {"timespec", "now"}` returns `prev`/`next` Unix times using the device's timezone, DST and location. `prev` **excludes** `now` itself: at exactly 07:00:00 the prev of `0 0 7 * * *` is yesterday's. Sunrise/sunset come at minute resolution (e.g. 07:10:00). The device accepts both `@sunrise+1m` and `@sunrise+0h1m * * *` (same times), but only the second keeps the Shelly app working (next section).
 - `Script.Start` on a stopped script returns `{"was_running": false}` after running its top level, so a `Script.Eval` right after it (from RPC or as the next call in one schedule job) finds `main` defined.
 - `KVS.Set` accepts objects as values (`{"day": ..., "at": ..., "results": [...]}`), and keys with dots and dashes (`daily-once.kitchen-morning`). A missing key gives error -105.
 - A small script has about 25 KB free memory (`Script.GetStatus` `mem_free`).
