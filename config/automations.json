@@ -9,6 +9,14 @@
         {"scene": "Finisci la notte del giudizio", "device": "Tapparella cucina", "action": "set position"}
       ]
     },
+    "studio-limit": {
+      "value": 40,
+      "unit": "%",
+      "about": "How far the studio window cover may be open on weekday afternoons, against glare on the monitor: studio-afternoon lowers it to this at 15:00, Mon-Fri",
+      "copies": [
+        {"device": "Tapparella studio", "component": "number:200"}
+      ]
+    },
     "purge-door-delay": {
       "value": 2,
       "unit": "min",

@@ -1,5 +1,27 @@
 {
-  "components": [],
+  "components": [
+    {
+      "config": {
+        "access": "*",
+        "default_value": 40,
+        "id": 200,
+        "max": 100,
+        "meta": {
+          "ui": {
+            "icon": "",
+            "step": 1,
+            "unit": "%",
+            "view": ""
+          }
+        },
+        "min": 0,
+        "name": "Limite apertura",
+        "owner": "",
+        "persisted": true
+      },
+      "key": "number:200"
+    }
+  ],
   "config": {
     "bthome": {},
     "cloud": {
@@ -86,8 +108,13 @@
       "use_client_cert": false,
       "user": null
     },
+    "script:1": {
+      "enable": false,
+      "id": 1,
+      "name": "cover-clamp"
+    },
     "sys": {
-      "cfg_rev": 25,
+      "cfg_rev": 27,
       "debug": {
         "file_level": null,
         "file_log": {
@@ -171,10 +198,37 @@
   "name": "Tapparella studio",
   "profile": "cover",
   "schedules": {
-    "jobs": [],
-    "rev": 1
+    "jobs": [
+      {
+        "calls": [
+          {
+            "method": "Script.Start",
+            "params": {
+              "id": 1
+            }
+          },
+          {
+            "method": "Script.Eval",
+            "params": {
+              "code": "main({\"max\":\"number:200\"})",
+              "id": 1
+            }
+          }
+        ],
+        "enable": true,
+        "id": 1,
+        "timespec": "0 0 15 * * MON,TUE,WED,THU,FRI"
+      }
+    ],
+    "rev": 4
   },
-  "scripts": [],
+  "scripts": [
+    {
+      "enable": false,
+      "id": 1,
+      "name": "cover-clamp"
+    }
+  ],
   "ver": "2.0.1",
   "webhooks": {
     "hooks": [],

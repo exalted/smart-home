@@ -37,6 +37,7 @@ Some values have to exist in more than one place, because the pieces that use th
 Scripts read them at run time instead of carrying the value in their schedule jobs: `cover-clamp` accepts `{"max": "number:200"}` (shelly-scripts skill). Then a change is one `Number.Set`, with no job rewrites.
 
 - `number:200` "Limite apertura" on Tapparella cucina holds `kitchen-limit` (created 2026-10-02 from the web app; min 0, max 100, step 1, unit %, "Keep current value after reboot").
+- `number:200` "Limite apertura" on Tapparella studio holds `studio-limit` (created 2026-10-02 over RPC with the same settings: `Virtual.Add {"type": "number", "id": 200, "config": {"name": "Limite apertura", "min": 0, "max": 100, "default_value": 40, "persisted": true, "meta": {"ui": {"view": "", "unit": "%", "step": 1, "icon": ""}}}}`; the device stores it like the web app's, minus an empty `meta.cloud`, and the web app's Components tab shows it exactly like the kitchen's, as "hidden"; checked 2026-10-02).
 - The user doesn't want these shown or editable in the app (2026-10-02): View "Hidden" (stored as `meta.ui.view: ""`). The file is the only place to change them.
 - `bin/shelly-config-apply` sets the current value, not `default_value` (only the fallback for a component that doesn't persist its value).
 

@@ -36,6 +36,8 @@ Why not resident scripts with events (`Shelly.emitEvent`): each would take one o
 | `cover-clamp` | Keep a cover within `[min, max]`: lower to max if more open, raise to min if more closed; leave it alone while it moves (someone is using it) or when the position is unknown | `{"id": 0, "min": n, "max": n}` (id defaults to 0, each bound optional; a bound can also be a number component's key, `"number:200"`, read at run time; returns `no component "<key>"` if it doesn't exist; verified 2026-10-02) | no |
 | `daily-once` | Run `then` once a day as soon as every timespec in `after` has fired today; record the day and each call's result in KVS `daily-once.<key>`; at boot, re-run its own schedule jobs (catch-up, safe because each key runs once a day) | `{"key": "...", "after": ["@sunrise", "0 0 7 * * *"], "then": [{"script": "cover-clamp", "args": {...}} or {"method": "...", "params": {...}}]}` | yes |
 
+Without `daily-once`, a job runs an action directly, e.g. `studio-afternoon`: `bin/shelly-schedule-exec '0 0 15 * * MON,TUE,WED,THU,FRI' cover-clamp '{"max":"number:200"}'` (verified 2026-10-02). Then a device that's off at that time skips the day; use `daily-once` only when a missed run should be caught up or the time needs a condition.
+
 `daily-once` must be started a minute **after** each `after` time (e.g. jobs `@sunrise+0h1m * * *` and `0 1 7 * * *`), because `Schedule.Eval`'s `prev` excludes the current second. The `after` timespecs themselves are only evaluated, never stored as jobs, so any form the device accepts works there.
 
 ## Tools
