@@ -40,7 +40,7 @@ You learn this home and its devices by experience, and what carries that experie
   - Guest-to-guest communication is on **only during setup sessions** like these, never day to day, so automations must not rely on devices reaching each other (or a hub reaching them): each device acts on itself, and anything across devices goes through the cloud. Leaving it on permanently is possible only if absolutely necessary, when no other route exists; ask the user then (2026-10-02).
   - **The user switches networks manually**, in both directions. Don't switch Wi-Fi yourself: pause and ask the user to join the guest network when local access is needed, and pause again to tell them when the guest network is no longer needed so they can switch back (and turn guest-to-guest communication off again if they want). `bin/shelly-netcheck` tells which of the two is missing; see the `shelly-local-access` skill.
 - **Cloud**: All Shelly devices belong to a single home in the Shelly app, under one Shelly Cloud account. Shelly Cloud is an alternative route to the devices when local network access isn't possible. The Shelly app keeps its own copy of each device's name and its room; the public Cloud Control API exposes neither (nor reboot), so use the web app (`shelly-cloud-web-app` skill). The account is on the free plan (no Premium), so scene conditions on weather or sunrise/sunset are locked; device schedules still offer sunrise/sunset. The user also uses the Shelly iPhone app, sometimes while you work. When a cover moves and you didn't command it, don't assume who or what did it (the user, someone at home, a wall switch, an automation): say so and ask the user. On 2026-10-02 it turned out to be the user, from the iPhone.
-- **Preferences** (2026-10-02): no paid features (Shelly Premium or others) unless *absolutely* necessary: find the free route first, and if paying really seems the only way, say so and why and let the user decide. The home has no alarm devices or thermostats and none are planned, so ignore those options in the app. Everything you create is in English: code, file names, script names, KVS keys, log messages, docs. On-device scripts are small, generic and composable, one job each, taking their specifics as arguments, and efficient (`shelly-scripts` skill). The only Italian is the names the household sees in the Shelly app: devices, rooms, groups, scenes and virtual components (and names derived from them, like `devices/Tapparella-cucina.json`). One scene per action: other languages and wordings for voice ("Begin the purge") go in `config/automations.json`, not into extra scenes (2026-10-02; `shelly-config` skill). A value that has to live in several places (a device and a cloud scene) is set once in `config/automations.json` and copied from there (`shelly-config` skill).
+- **Preferences** (2026-10-02): no paid features (Shelly Premium or others) unless *absolutely* necessary: find the free route first, and if paying really seems the only way, say so and why and let the user decide. The home has no alarm devices or thermostats and none are planned, so ignore those options in the app. Everything you create is in English: code, file names, script names, KVS keys, log messages, docs. On-device scripts are small, generic and composable, one job each, taking their specifics as arguments, and efficient (`shelly-scripts` skill). The only Italian is the names the household sees in the Shelly app: devices, rooms, groups, scenes and virtual components (and names derived from them, like `devices/Tapparella-cucina.json`). Rain detection, when it gets built, notifies a human instead of moving covers, so a person decides what to close (2026-10-02; `shelly-automation` skill, recipe 4). One scene per action: other languages and wordings for voice ("Begin the purge") go in `config/automations.json`, not into extra scenes (2026-10-02; `shelly-config` skill). A value that has to live in several places (a device and a cloud scene) is set once in `config/automations.json` and copied from there (`shelly-config` skill).
 - **Automations** (2026-10-02): two so far:
 
   | Automation | Device | What | How |
@@ -53,20 +53,21 @@ You learn this home and its devices by experience, and what carries that experie
   No groups in the app, no webhooks, and no scripts, schedules or virtual components on the other 9 devices. All 10 devices have their timezone (Europe/Rome) and location set, which sunrise/sunset needs. Read the `shelly-automation` skill before proposing or building any.
 - **Devices**: 10 × Shelly 2PM Gen3 (`S3SW-002P16EU`, firmware 2.0.1), all in the `cover` profile (as opposed to the `switch` profile), each driving one roller shutter / blind motor. In the Gen2+ API this is the `Cover` component (`cover:0`, `Cover.*` RPC methods); Gen1 devices called the same mode "roller", and Home Assistant exposes it as a `cover` entity. Matter is off. All 10 are calibrated (2026-10-02), so they have a position in percent and the app shows a position slider. Obstruction detection is on for all 10 (stop, both directions, threshold = calibrated value + 10%; see the `shelly-cover-obstruction` skill). The wall controls are push buttons held while the shutter moves (inputs `type: "switch"`, `dual` mode). On every device both the motor wires and the wall-switch wires are crossed (the app's arrows moved the rollers the wrong way while the wall switches were right), so all 10 have "Reverse directions" and "Swap inputs" on (`invert_directions`, `swap_inputs`; set 2026-10-02, see the `shelly-cover-direction` skill). The user confirmed the fix on all 10, for both the app and the wall switches (2026-10-02).
 
-  | Name (on device and in the Shelly app) | Room |
-  |---|---|
-  | Tapparella bagno matrimoniale | Bagno matrimoniale |
-  | Tapparella bagno ospiti | Bagno ospiti |
-  | Tapparella camera ospiti | Camera ospiti |
-  | Tapparella porta camera ospiti | Camera ospiti |
-  | Tapparella porta matrimoniale | Camera matrimoniale |
-  | Tapparella cucina | Cucina |
-  | Tapparella porta cucina | Cucina |
-  | Tapparella soggiorno | Soggiorno |
-  | Tapparella porta soggiorno | Soggiorno |
-  | Tapparella studio | Studio |
+  | Name (on device and in the Shelly app) | Room | Faces |
+  |---|---|---|
+  | Tapparella bagno matrimoniale | Bagno matrimoniale | ESE |
+  | Tapparella bagno ospiti | Bagno ospiti | ESE |
+  | Tapparella camera ospiti | Camera ospiti | WNW |
+  | Tapparella porta camera ospiti | Camera ospiti | WNW |
+  | Tapparella porta matrimoniale | Camera matrimoniale | ESE |
+  | Tapparella cucina | Cucina | ESE |
+  | Tapparella porta cucina | Cucina | SSW |
+  | Tapparella soggiorno | Soggiorno | NNE |
+  | Tapparella porta soggiorno | Soggiorno | WNW |
+  | Tapparella studio | Studio | WNW |
 
   Each device's ID/MAC (its stable identity) and last-seen IP (from DHCP) are in the device table in `CLAUDE.local.md`. Names follow `<Tipo> [porta] <stanza>` (window is the default); see the `shelly-naming` skill before naming anything. Refer to devices by name, with technical details in parentheses after it.
+- **Orientation** (2026-10-02, from the user's map; angles ±5°): the building is a rectangle turned about 28° clockwise from north, so every opening faces one of four ways (the Faces column above): NNE (~28°) the soggiorno window alone; ESE (~118°) cucina, both bathrooms and porta matrimoniale; SSW (~208°) porta cucina alone; WNW (~298°) porta soggiorno, studio, camera ospiti and porta camera ospiti. Nothing notable shades any side. Virtually every opening is sheltered by the roof; with slanted or windblown rain the most exposed are, in order, the doors (they reach the floor), studio (one of the outermost windows) and soggiorno (the roof above it is very high), while the bathroom windows hardly ever get wet (user, 2026-10-02). What this means for sun and rain, and which covers therefore act together: `shelly-automation` skill, `orientation.md`. The home's coordinates and exact sun times per side and month are in `CLAUDE.local.md` (they locate the home, so never in tracked files).
 
 ### Keeping this section current
 
@@ -123,7 +124,7 @@ Project skills in `.claude/skills/`:
 - `shelly-cover-control`: moving covers and stopping them properly (never leave a movement running until the device's timeout)
 - `shelly-cover-calibration`: calibrating, forgetting a calibration, unknown positions and the missing position slider
 - `shelly-cover-obstruction`: obstruction detection, its threshold, and forcing a cover after a false alarm (also remotely)
-- `shelly-automation`: designing automations, free routes first: rooms, groups, scenes, device schedules, webhooks, scripts, virtual components (cloud vs on-device), the door-cover lockout rule, recipes (close all, wake-up, afternoon half-close, rain from one side, seasonal vacation schedules, presence simulation), what's impossible; reference files for the app's wizards (`app-ui.md`) and the device API (`device-api.md`)
+- `shelly-automation`: designing automations, free routes first: rooms, groups, scenes, device schedules, webhooks, scripts, virtual components (cloud vs on-device), the door-cover lockout rule, recipes (close all, wake-up, afternoon half-close, rain from one side, seasonal vacation schedules, presence simulation), what's impossible; reference files for the app's wizards (`app-ui.md`), the device API (`device-api.md`), and which way each cover faces with sun and rain per side (`orientation.md`)
 - `shelly-scripts`: writing, installing, scheduling and testing generic, composable on-device scripts (`scripts/`: `cover-clamp`, `daily-once`), and the script engine's verified behavior
 - `shelly-naming`: naming convention and where names live (device, Shelly app, Matter, Apple Home, Home Assistant, Alexa/Google, DIRIGERA)
 - `shelly-rename-device`: renaming end to end, on the device and in the Shelly app
