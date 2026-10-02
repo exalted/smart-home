@@ -37,7 +37,7 @@ Steps: **When → Do → Active time → More options → Select room → Detail
 | Weather forecast based | **Premium** | Greyed out. Per the KB: forecast for the next 1–6 h, checked hourly; clouds, precipitation, wind direction (N/E/S/W) and force, temperature, humidity |
 | Sunrise/Sunset based | **Premium** | Greyed out |
 
-Cover properties for "Device based": **Opening State** (Open, Opening, Closed, Closing, Stopped), **Device Position** (less/more than N %), **Power Consumption** (less/more than N W).
+Cover properties for "Device based": **Opening State** (Open, Opening, Closed, Closing, Stopped), **Device Position** (less/more than N %), **Power Consumption** (less/more than N W). Nothing else, not even after virtual components were added to the device and the page reloaded (3.77.25, 2026-10-02): a scene can't react to a virtual component of these covers.
 
 "Watch the property as":
 - **Condition**: "Check if it is the desired device state, but does not activate scene by itself"
@@ -50,7 +50,18 @@ Several conditions combine with and/or.
 
 "Add action" → Create action or Import action. Types: Device action, Group action, Scene action, Notify action, Alarm action.
 
-Device action steps: Action → Device → Change state → Delay action. For a cover: "open Shelly roller", "stop Shelly roller", "close Shelly roller", "set position Shelly roller" (slider 0–100 %). Delay: "Execute the action after N" seconds or minutes, 0–1440.
+Device action steps: Action → Device → Change state → Delay action. For a cover: "open Shelly roller", "stop Shelly roller", "close Shelly roller", "set position Shelly roller" (slider 0–100 %). Delay: "Execute the action after N" seconds or minutes, 0–1440. **One device per action** (the device list is radio buttons grouped by room), so "all covers" is 10 actions. A delayed action shows "Delay 2 min" on its card in the Do list (2026-10-02).
+
+Scene action steps (2026-10-02): Action → Scene (scenes grouped by room, e.g. Global) → "Fulfill scene as" → Delay action. "Fulfill scene as" offers "Start scene, evaluate conditions and then do actions if needed", "Start scene and directly execute action part" ("Execute 'Do' actions without evaluating 'When' conditions"), "Enable scene", "Disable scene", "Toggle scene". The card then reads "<scene name> / Play scene". It can make one scene an alias of another. "Directly execute" runs the target's delayed actions too: running the alias "Begin the purge" started the door covers of "Inizia la notte del giudizio" 2 min 3 s later (observed 2026-10-02). The aliases were deleted the same day: other wordings belong in the voice layer (shelly-config skill).
+
+How a saved scene is stored (`POST scene/add`, form field `scene_script`, JSON; 2026-10-02): `_enabled` (Enable scene), `_run_on_ingest` ("Execute the scene on save or edit"), `_meta` (`name`, `room` = -1 for Global, shown as "General", `position`, `adi` = the device IDs used), `if.or[].and[]` (a manual execution is `{"_gui_type": "manual_execution"}`), and `do[]`: a cover action is `{"r": "dev:<device id as decimal>:rl", "set": "close"}` (or `open`), a delayed one is wrapped as `{"wait": 2, "units": "minutes", "do": {"blk": [<action>]}}`. The response returns the new `scene_id`. Saving a new scene also sends `scene/bulk_update` with `reorder=1` for the existing scenes: only their `position` changes.
+
+A Device action for a cover offers only those four states, also when the device has virtual components (3.77.25, 2026-10-02): a scene can't press a virtual button or set a virtual number.
+
+A saved scene opens in a side panel: name, a copy (duplicate) button, the pencil ("Edit scene"), a play button (runs it), an info button (scene ID), the When and Do lists. There is no delete there.
+
+- **Editing** ("Edit scene"): the same steps as Add, prefilled, with "Execute the scene on save or edit" as saved. Each action card in Do has a pencil ("Edit": the four action steps again) and a trash button. The final Save sends `POST scene/edit` with `id` and the full `scene_script`. A "set position" action is stored as `{"r": "dev:<id>:rl", "set": 30}` (2026-10-02).
+- **Deleting**: on All Scenes, the "Edit" button at the top (pencil) turns on edit mode; each card then has "Edit scene" and "Delete scene", which asks "Delete scene? ... will permanently remove it from your account." "Exit edit mode" leaves it (2026-10-02).
 
 ### Active time
 
@@ -83,7 +94,11 @@ An existing job's pencil opens "Edit schedule" with the same four steps, prefill
 
 ## Other device panel sections
 
-Icons down the left of the device panel; known so far: calendar = Schedule, shield = Safety (obstacle detection and protections). Unexplored: the link icon (presumably Actions/webhooks), the `{}` icon (presumably Scripts), the cube (presumably virtual components).
+Icons down the left of the device panel; known so far: calendar = Schedule, shield = Safety (obstacle detection and protections), cube = Virtual components.
+
+### Virtual components (device panel → cube; observed 2026-10-02, web app 3.77.25)
+
+Tabs Groups and Components. "Create virtual component": type (button, number, boolean, text, enum; id assigned, e.g. `button:200`, `number:200`), then settings: Name, View, and per type more (number: Min, Max, Step, Unit, Default Value, Persisted "Keep current value after reboot" / "Use default value after reboot", Web Icon, statistics, Event Log). Number views: Label, Field, Slider, Progressbar, Hidden ("Hidden" is stored as `meta.ui.view: ""`). It's created on the device through the cloud: no guest network needed. The Components tab then lists each with its key: a button as a press control, a number per its view (Field: a value box with Save; Hidden: marked "hidden", no control), a pencil ("Show component settings") and a trash ("Remove component", which asks "Delete Component?"). Unexplored: the link icon (presumably Actions/webhooks), the `{}` icon (presumably Scripts), the cube (presumably virtual components).
 
 ## Premium (kb.shelly.cloud, 2026-10)
 

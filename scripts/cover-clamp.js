@@ -3,13 +3,24 @@
 // is more closed. Leaves it alone while it moves, since then someone is
 // using it, and when its position is unknown (not calibrated).
 //
+// A bound is a number, or the key of a number component on this device
+// ("number:200"), read at run time: then the value lives in that component
+// alone, and changing it doesn't touch the schedule jobs that call this.
+//
 // Run it with Script.Start, then Script.Eval with main(<JSON args>). It
 // returns what it did as text and stops itself.
 //   main({"max": 35})                     cover 0, never more open than 35
+//   main({"max": "number:200"})           ... than number:200's value
 //   main({"id": 0, "min": 20, "max": 80})
 
 function stop() {
   Shelly.call("Script.Stop", { id: Shelly.getCurrentScriptId() });
+}
+
+function bound(v) {
+  if (typeof v !== "string") return v;
+  let c = Shelly.getComponentStatus(v);
+  return c ? c.value : null;
 }
 
 function main(args) {
@@ -18,6 +29,12 @@ function main(args) {
   if (!cover) {
     stop();
     return "no cover " + JSON.stringify(id);
+  }
+  let min = bound(args.min);
+  let max = bound(args.max);
+  if (min === null || max === null) {
+    stop();
+    return "no component " + JSON.stringify(min === null ? args.min : args.max);
   }
   if (cover.state === "opening" || cover.state === "closing") {
     stop();
@@ -29,8 +46,8 @@ function main(args) {
     return "position unknown";
   }
   let target = null;
-  if (args.max !== undefined && pos > args.max) target = args.max;
-  if (args.min !== undefined && pos < args.min) target = args.min;
+  if (max !== undefined && pos > max) target = max;
+  if (min !== undefined && pos < min) target = min;
   if (target === null) {
     stop();
     return "at " + JSON.stringify(pos) + ", left alone";

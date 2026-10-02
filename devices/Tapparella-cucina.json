@@ -1,5 +1,28 @@
 {
-  "components": [],
+  "components": [
+    {
+      "config": {
+        "access": "*",
+        "default_value": 30,
+        "id": 200,
+        "max": 100,
+        "meta": {
+          "cloud": [],
+          "ui": {
+            "icon": "",
+            "step": 1,
+            "unit": "%",
+            "view": ""
+          }
+        },
+        "min": 0,
+        "name": "Limite apertura",
+        "owner": "",
+        "persisted": true
+      },
+      "key": "number:200"
+    }
+  ],
   "config": {
     "bthome": {},
     "cloud": {
@@ -97,7 +120,7 @@
       "name": "daily-once"
     },
     "sys": {
-      "cfg_rev": 25,
+      "cfg_rev": 30,
       "debug": {
         "file_level": null,
         "file_log": {
@@ -133,7 +156,9 @@
       "sntp": {
         "server": "time.cloudflare.com"
       },
-      "ui_data": {}
+      "ui_data": {
+        "device_revision": "0-26"
+      }
     },
     "wifi": {
       "ap": {
@@ -195,7 +220,7 @@
           {
             "method": "Script.Eval",
             "params": {
-              "code": "main({\"key\":\"kitchen-morning\",\"after\":[\"@sunrise\",\"0 0 7 * * *\"],\"then\":[{\"script\":\"cover-clamp\",\"args\":{\"max\":35}}]})",
+              "code": "main({\"key\":\"kitchen-morning\",\"after\":[\"@sunrise\",\"0 0 7 * * *\"],\"then\":[{\"script\":\"cover-clamp\",\"args\":{\"max\":\"number:200\"}}]})",
               "id": 2
             }
           }
@@ -215,7 +240,7 @@
           {
             "method": "Script.Eval",
             "params": {
-              "code": "main({\"key\":\"kitchen-morning\",\"after\":[\"@sunrise\",\"0 0 7 * * *\"],\"then\":[{\"script\":\"cover-clamp\",\"args\":{\"max\":35}}]})",
+              "code": "main({\"key\":\"kitchen-morning\",\"after\":[\"@sunrise\",\"0 0 7 * * *\"],\"then\":[{\"script\":\"cover-clamp\",\"args\":{\"max\":\"number:200\"}}]})",
               "id": 2
             }
           }
@@ -225,7 +250,7 @@
         "timespec": "0 1 7 * * *"
       }
     ],
-    "rev": 10
+    "rev": 12
   },
   "scripts": [
     {

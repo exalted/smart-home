@@ -1,10 +1,10 @@
 # Device-side automation: API reference
 
-From the official API docs (shelly-api-docs.shelly.cloud, via context7) on 2026-10-02 unless marked as observed. Schedules, scripts, `Schedule.Eval`, `Script.Eval` and KVS have been tried on Tapparella cucina (marked observed); webhooks, virtual components and BTHome not yet. The open checks are under "Still to verify" in SKILL.md. Use `bin/shelly-rpc` to call these methods.
+From the official API docs (shelly-api-docs.shelly.cloud, via context7) on 2026-10-02 unless marked as observed. Schedules, scripts, `Schedule.Eval`, `Script.Eval`, KVS and a virtual number have been tried on Tapparella cucina (marked observed); webhooks and BTHome not yet. The open checks are under "Still to verify" in SKILL.md. Use `bin/shelly-rpc` to call these methods.
 
 ## What a Shelly 2PM Gen3 has
 
-Cover (`cover:0`), two inputs, Virtual components, BTHome components, Matter (off here), MQTT, Outbound WebSocket, KNX, up to 10 scripts. Observed on all 10 (backup 2026-10-02): timezone Europe/Rome and `sys.location` lat/lon set, no webhooks; scripts and schedules only on Tapparella cucina (CLAUDE.md, Automations).
+Cover (`cover:0`), two inputs, Virtual components, BTHome components, Matter (off here), MQTT, Outbound WebSocket, KNX, up to 10 scripts. Observed on all 10 (backup 2026-10-02): timezone Europe/Rome and `sys.location` lat/lon set, no webhooks; scripts, schedules and a virtual component only on Tapparella cucina (CLAUDE.md, Automations).
 
 ## Limits
 
@@ -17,7 +17,7 @@ Cover (`cover:0`), two inputs, Virtual components, BTHome components, Matter (of
 
 ## Schedule
 
-`Schedule.Create {"enable": true, "timespec": "...", "calls": [{"method": "Cover.GoToPosition", "params": {"id": 0, "pos": 50}}]}`; also `Schedule.List`, `Schedule.Update` (e.g. `enable`), `Schedule.Delete`, `Schedule.DeleteAll`. Calls can be any RPC method on the device itself (e.g. `Cover.Open`, `Cover.Close`, `Cover.Stop`, `Cover.GoToPosition`, `Schedule.Update`, `Script.Start`).
+`Schedule.Create {"enable": true, "timespec": "...", "calls": [{"method": "Cover.GoToPosition", "params": {"id": 0, "pos": 50}}]}`; also `Schedule.List`, `Schedule.Update` (e.g. `enable`; `{"id", "calls"}` replaces a job's calls and keeps its timespec and enable flag, observed 2026-10-02), `Schedule.Delete`, `Schedule.DeleteAll`. Calls can be any RPC method on the device itself (e.g. `Cover.Open`, `Cover.Close`, `Cover.Stop`, `Cover.GoToPosition`, `Schedule.Update`, `Script.Start`).
 
 Timespec, 5, 6 or 7 fields: `[sec] min hour day-of-month month day-of-week [year]`. Ranges 0–59, 0–59, 0–23, 1–31, 1–12, 0–7 (0 and 7 = Sunday), 1970–2199. `*`, lists `,`, ranges `-`, steps `/`, `?`, `L`, `W`, `#`; names `MON`–`SUN`, `JAN`–`DEC`; `@yearly`, `@monthly`, `@weekly`, `@daily`, `@hourly`.
 
@@ -38,6 +38,8 @@ Timespec, 5, 6 or 7 fields: `[sec] min hour day-of-month month day-of-week [year
 - Cover events: `cover.open` (fully open), `cover.closed` (fully closed), `cover.opening`, `cover.closing`, `cover.stopped` (stopped in between).
 - Input events: `input.toggle_on` / `input.toggle_off` for switch-type inputs (this home's inputs are `type: "switch"`), `input.button_push` / `_longpush` / `_doublepush` / `_triplepush` for button-type inputs.
 - `condition`: an expression over `config`, `status`, `info`, and `ev`/`event` attributes, e.g. `event.tC > 20`.
+- URL tokens: `${...}` in a URL is evaluated over the same objects and URL-encoded, e.g. `http://127.0.0.1/rpc/Cover.GoToPosition?id=0&pos=${status["number:200"].value}` would move the cover to a virtual number's value without a script (from the docs; a webhook calling its own device is untested, SKILL.md "Still to verify"). `$${` is a literal `${`.
+- Virtual component events: `button.single_push` / `double_push` / `triple_push` / `long_push` for a virtual button, `boolean.change` for a boolean (docs).
 - `repeat_period`: minimum seconds between calls; negative = only when the condition turns from false to true; 0 = every event.
 - `ssl_ca`: `null` built-in CAs, `user_ca.pem`, `*` no validation.
 - Calling *another* device needs guest-to-guest traffic on (SKILL.md, network constraint).
@@ -60,7 +62,7 @@ Shelly's examples repo (`ALLTERCO/shelly-script-examples`, folder `weather-env`)
 
 ## Virtual components
 
-`Virtual.Add {"type": "boolean", "id": 200, "config": {"name": "...", "persisted": true}}`; types boolean, number, text, enum, group, button. Scripts read and set them (`handle.getValue()`, `setValue()`, `on("change", ...)`). Use case here: a "vacation" boolean that the plant/presence script checks, flipped from the app (if the app shows it) or by RPC.
+`Virtual.Add {"type": "boolean", "id": 200, "config": {"name": "...", "persisted": true}}`; types boolean, number, text, enum, group, button. Scripts read and set them (`handle.getValue()`, `setValue()`, `on("change", ...)`). In use: `number:200` "Limite apertura" on Tapparella cucina, read by `cover-clamp` (`{"max": "number:200"}`) for `kitchen-morning` (2026-10-02). Scripts can also read one with `Shelly.getComponentStatus("number:200").value` (that is how `cover-clamp` does it). `Number.Set {"id": 200, "value": 30}` / `Number.GetStatus {"id": 200}` over RPC; the same `<Type>.Set` / `.GetStatus` shape for the other types. Possible use: a "vacation" boolean that a plant/presence script checks. They can be created and edited from the app through the cloud (app-ui.md), but cloud scenes can't use them (SKILL.md, impossible).
 
 ## BTHome (Shelly BLU sensors)
 

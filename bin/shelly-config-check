@@ -1,0 +1,44 @@
+#!/bin/sh
+# Usage: shelly-config-check [--config FILE]
+#
+# Reads devices on stdin (JSON lines with "name" and "ip", e.g. from
+# shelly-scan) and compares each value in config/automations.json (or FILE)
+# with its copies on that device, such as a virtual number component. Prints
+# one JSON line per device with "config": [{value, component, want, have,
+# ok}] (empty for devices that hold no copy), and exits 1 if any copy differs
+# or can't be read. Copies in cloud scenes aren't checked: see the
+# shelly-config skill.
+#
+# Example: shelly-scan | shelly-config-check | jq -c 'select(.config != [])'
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+if [ "${1:-}" = --worker ]; then
+  config=$2 line=$3
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  name=$(printf '%s' "$line" | jq -r '.name // ""')
+  results=$(shelly_config_copies "$config" "$name" | while IFS= read -r copy; do
+    key=$(printf '%s' "$copy" | jq -r .component)
+    status=$(shelly_component_call "$ip" "$key" GetStatus)
+    jq -nc --argjson c "$copy" --argjson s "$status" '
+      $c + if $s.error then {have: null, ok: false, error: $s.error}
+           else {have: $s.result.value, ok: ($s.result.value == $c.want)} end'
+  done | jq -sc .)
+  out=$(jq -nc --argjson in "$line" --argjson r "$results" '$in + {config: $r}')
+  printf '%s\n' "$out"
+  printf '%s' "$out" | jq -e 'all(.config[]; .ok)' >/dev/null
+  exit
+fi
+
+config=$(dirname "$0")/../config/automations.json
+case ${1:-} in
+  -h | --help) usage_from_header; exit 0 ;;
+  --config) config=${2:?--config needs a file} ;;
+  '') ;;
+  *) die "unknown option: $1" ;;
+esac
+need curl jq
+[ -r "$config" ] || die "can't read $config"
+
+shelly_each "$0" --worker "$config" || exit 1

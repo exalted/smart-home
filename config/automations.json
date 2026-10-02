@@ -1,0 +1,28 @@
+{
+  "values": {
+    "kitchen-limit": {
+      "value": 30,
+      "unit": "%",
+      "about": "How far the kitchen window cover may be open by day: kitchen-morning lowers it to this, Finisci la notte del giudizio opens it to this",
+      "copies": [
+        {"device": "Tapparella cucina", "component": "number:200"},
+        {"scene": "Finisci la notte del giudizio", "device": "Tapparella cucina", "action": "set position"}
+      ]
+    },
+    "purge-door-delay": {
+      "value": 2,
+      "unit": "min",
+      "about": "How long after the windows the door covers close in the purge, so someone outside can come in or stop them",
+      "copies": [
+        {"scene": "Inizia la notte del giudizio", "device": "Tapparella porta cucina", "action": "delay"},
+        {"scene": "Inizia la notte del giudizio", "device": "Tapparella porta soggiorno", "action": "delay"},
+        {"scene": "Inizia la notte del giudizio", "device": "Tapparella porta camera ospiti", "action": "delay"},
+        {"scene": "Inizia la notte del giudizio", "device": "Tapparella porta matrimoniale", "action": "delay"}
+      ]
+    }
+  },
+  "voice": {
+    "Inizia la notte del giudizio": ["Inizia la notte del giudizio", "Inizia il giorno del giudizio", "Begin the purge"],
+    "Finisci la notte del giudizio": ["Finisci la notte del giudizio", "Finisci il giorno del giudizio", "End the purge"]
+  }
+}

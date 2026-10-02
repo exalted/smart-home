@@ -1,6 +1,6 @@
 ---
 name: shelly-scripts
-description: Write, install, schedule and test on-device scripts (mJS) for the Shelly devices the house way, as small, generic, composable "one job" scripts in scripts/ that take JSON arguments from their caller (Script.Start + Script.Eval "main(...)") and stop themselves. Covers the conventions, the script catalog (cover-clamp, daily-once), bin/shelly-script-put, bin/shelly-schedule-exec, testing with a near-future schedule and a reboot, and verified engine facts (Schedule.Eval, Script.Eval, KVS, language limits), and what the Shelly app and the device's own web UI show of script jobs (only the web UI shows their arguments). Use whenever an automation needs a condition, a script is written or changed, or a schedule should run a script.
+description: Write, install, schedule and test on-device scripts (mJS) for the Shelly devices the house way, as small, generic, composable "one job" scripts in scripts/ that take JSON arguments from their caller (Script.Start + Script.Eval "main(...)") and stop themselves, with values read from virtual components. Covers the conventions, the script catalog (cover-clamp, daily-once), bin/shelly-script-put, bin/shelly-schedule-exec, testing with a near-future schedule and a reboot, and verified engine facts (Schedule.Eval, Script.Eval, KVS, language limits), and what the Shelly app and the device's own web UI show of script jobs (only the web UI shows their arguments). Use whenever an automation needs a condition, a script is written or changed, or a schedule should run a script.
 ---
 
 # On-device scripts
@@ -33,7 +33,7 @@ Why not resident scripts with events (`Shelly.emitEvent`): each would take one o
 
 | Script | Job | Args | Boot |
 |---|---|---|---|
-| `cover-clamp` | Keep a cover within `[min, max]`: lower to max if more open, raise to min if more closed; leave it alone while it moves (someone is using it) or when the position is unknown | `{"id": 0, "min": n, "max": n}` (id defaults to 0, each bound optional) | no |
+| `cover-clamp` | Keep a cover within `[min, max]`: lower to max if more open, raise to min if more closed; leave it alone while it moves (someone is using it) or when the position is unknown | `{"id": 0, "min": n, "max": n}` (id defaults to 0, each bound optional; a bound can also be a number component's key, `"number:200"`, read at run time; returns `no component "<key>"` if it doesn't exist; verified 2026-10-02) | no |
 | `daily-once` | Run `then` once a day as soon as every timespec in `after` has fired today; record the day and each call's result in KVS `daily-once.<key>`; at boot, re-run its own schedule jobs (catch-up, safe because each key runs once a day) | `{"key": "...", "after": ["@sunrise", "0 0 7 * * *"], "then": [{"script": "cover-clamp", "args": {...}} or {"method": "...", "params": {...}}]}` | yes |
 
 `daily-once` must be started a minute **after** each `after` time (e.g. jobs `@sunrise+0h1m * * *` and `0 1 7 * * *`), because `Schedule.Eval`'s `prev` excludes the current second. The `after` timespecs themselves are only evaluated, never stored as jobs, so any form the device accepts works there.
@@ -46,7 +46,7 @@ bin/shelly-scan | jq -c 'select(.name == "Tapparella cucina")' > .scratch/dev.js
 bin/shelly-script-put scripts/cover-clamp.js < .scratch/dev.jsonl
 bin/shelly-script-put --boot scripts/daily-once.js < .scratch/dev.jsonl
 # schedule a run with arguments (no duplicate if the same job exists)
-bin/shelly-schedule-exec '@sunrise+0h1m * * *' daily-once '{"key":"kitchen-morning","after":["@sunrise","0 0 7 * * *"],"then":[{"script":"cover-clamp","args":{"max":35}}]}' < .scratch/dev.jsonl
+bin/shelly-schedule-exec '@sunrise+0h1m * * *' daily-once '{"key":"kitchen-morning","after":["@sunrise","0 0 7 * * *"],"then":[{"script":"cover-clamp","args":{"max":"number:200"}}]}' < .scratch/dev.jsonl
 # what happened on the last run
 bin/shelly-rpc KVS.Get '{"key":"daily-once.kitchen-morning"}' < .scratch/dev.jsonl
 # every job's arguments
@@ -58,9 +58,10 @@ Updating a script's code keeps its id, so existing schedule jobs keep working. D
 
 ## Where an automation's arguments live, and seeing or changing them
 
-Established 2026-10-02 on `kitchen-morning` (its `{"max": 35}`):
+Established 2026-10-02 on `kitchen-morning`:
 
-- **Only in the schedule jobs.** The scripts hold no values. Each job's `Script.Eval` code carries the whole argument (`main({"key":…,"after":[…],"then":[{"script":"cover-clamp","args":{"max":35}}]})`); `daily-once` hands each `then` item's `args` on unchanged, by its own `Script.Start` + `Script.Eval "main(<args>)"`; and its boot catch-up parses the arguments back out of the same jobs. So the jobs are the single source of truth, and every job of one automation holds an identical copy (`kitchen-morning` has two: sunrise and 07:00).
+- **Values go in virtual components, structure in the jobs.** Since 2026-10-02 `kitchen-morning`'s limit lives in the number "Limite apertura" (`number:200`) and its jobs pass the key, `{"max": "number:200"}`. Changing the value is then one `Number.Set`, done from `config/automations.json` with `bin/shelly-config-apply` (shelly-config skill), and no job changes. Do the same for any new value a script automation reads: create a number (or other) component on the device, hidden in the app (the user's choice), and list it as a copy in the config file.
+- **The rest is only in the schedule jobs.** The scripts hold no values. Each job's `Script.Eval` code carries the whole argument (`main({"key":…,"after":[…],"then":[{"script":"cover-clamp","args":{"max":"number:200"}}]})`); `daily-once` hands each `then` item's `args` on unchanged, by its own `Script.Start` + `Script.Eval "main(<args>)"`; and its boot catch-up parses the arguments back out of the same jobs. So for everything not in a component (keys, times, which script), the jobs are the single source of truth, and every job of one automation holds an identical copy (`kitchen-morning` has two: sunrise and 07:00).
 - **Who can see them:**
 
   | Where | Arguments visible? |
@@ -71,10 +72,10 @@ Established 2026-10-02 on `kitchen-morning` (its `{"max": 35}`):
   | `Schedule.List` over RPC (command above), the backup in `devices/<name>.json` | Yes |
 
   The iPhone app wasn't checked for this; it has matched the web app so far. Details of each UI in the two sections below.
-- **So the household can see that an automation exists and pause it** (each job's toggle, in the app or the web UI), **but can't see or change its values.** Changing one takes a session with local access: the public Cloud Control API has no generic RPC, and neither UI can edit a script call.
-- **Changing a value means changing every job that holds the copy**, on every device concerned:
+- **So the household can see that an automation exists and pause it** (each job's toggle, in the app or the web UI), **but can't see or change its values.** The value components are hidden in the app on purpose (user, 2026-10-02): `config/automations.json` is the one place to change them (shelly-config skill). Changing anything takes a session with local access: the public Cloud Control API has no generic RPC, and neither UI can edit a script call.
+- **Changing what a job passes (anything not in a component) means changing every job that holds the copy**, on every device concerned:
   - `bin/shelly-schedule-exec` doesn't do it. It only creates jobs, and a job with new arguments isn't a duplicate, so it would add one next to the old. Both would then run `daily-once` with the same key, and whichever fires first that day would win.
-  - Either send `Schedule.Update {"id", "calls"}` to each job with the new code (that method is in the API docs but untested here), or `Schedule.Delete` each one and recreate it with `bin/shelly-schedule-exec`.
+  - Send `Schedule.Update {"id", "calls"}` to each job with the new code: it keeps the job's id, timespec and enable flag (verified 2026-10-02, when `kitchen-morning`'s jobs moved from `{"max":35}` to `{"max":"number:200"}`; build the calls from `Schedule.List` with `jq` and read them back). Deleting and recreating with `bin/shelly-schedule-exec` also works but changes the ids.
   - Then refresh the backup (shelly-backup skill) and the Automations table in CLAUDE.md.
   - The door-cover rule applies whenever the new value could close a door cover (shelly-automation skill).
 
@@ -103,7 +104,7 @@ Observed 2026-10-02 in the web app 3.77.24 (the iPhone app showed the same sympt
 
 Observed 2026-10-02 on Tapparella cucina (firmware 2.0.1), from the guest network:
 
-- **This is where a person can read an automation's arguments without tools.** Schedules (`http://<ip>/#/schedules-all`) lists each job by time ("00:01 after sunrise", "07:01:00"); clicking the time opens `#/schedule/<id>`, which shows every call as read-only JSON, including the full `Script.Eval` code (`main({... "args":{"max":35} ...})`).
+- **This is where a person can read an automation's arguments without tools.** Schedules (`http://<ip>/#/schedules-all`) lists each job by time ("00:01 after sunrise", "07:01:00"); clicking the time opens `#/schedule/<id>`, which shows every call as read-only JSON, including the full `Script.Eval` code (`main({... "args":{"max":"number:200"} ...})`).
 - Each script call carries a "Call may not work as expected" badge. It's cosmetic: the UI checks calls against its own short list of methods (`switch.set`, `cover.*`, `boolean/text/number.set`, …; read in its code), and `Script.*` isn't on it. The jobs run fine.
 - It can't change the arguments: the JSON boxes are read-only, and "+ Add action to execute" offers only Open/Close/Stop/Move Cover to position on Cover (0). To change them, see "Where an automation's arguments live" above.
 - Don't press Save on that page. For `* * *` it shows no weekday ticked and asks for one ("At least one of the week days needs to be selected."), so saving would at least rewrite the timespec (its code sends `Schedule.Update` with timespec, calls and enable). Leaving the page without Save sends nothing. Each job's toggle sends only `Schedule.Update {id, enable}` (from its code), like the app's.

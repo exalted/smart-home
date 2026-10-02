@@ -71,6 +71,24 @@ shelly_call() {
   esac
 }
 
+# Calls <Type>.<VERB> on a component key: "number:200" GetStatus ->
+# Number.GetStatus {"id":200}, merged with optional extra params.
+shelly_component_call() {
+  host=$1 key=$2 verb=$3 extra=${4:-'{}'}
+  type=${key%%:*}
+  method="$(printf '%s' "$type" | cut -c1 | tr '[:lower:]' '[:upper:]')$(printf '%s' "$type" | cut -c2-).$verb"
+  shelly_call "$host" "$method" "$(jq -nc --argjson id "${key#*:}" --argjson x "$extra" '{id: $id} + $x')"
+}
+
+# Prints the copies of config values that live on the device named NAME, one
+# JSON object per line: {value, component, want}. Cloud scene copies are left
+# out; only the web app can change those.
+shelly_config_copies() {
+  jq -c --arg n "$2" '.values | to_entries[] | .key as $k | .value.value as $v
+    | .value.copies[] | select(.device == $n and .component)
+    | {value: $k, component, want: $v}' "$1"
+}
+
 # The Shelly app's schedule page (web and phone, app 3.77.24) crashes into an
 # endless spinner if any job's timespec doesn't match its own parser, ported
 # here: six fields, numeric months, weekdays only as comma lists, sun offsets

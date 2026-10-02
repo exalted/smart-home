@@ -1,6 +1,6 @@
 ---
 name: shelly-naming
-description: The house naming convention for smart home devices, and where device names live (on the device, Shelly app/cloud, Matter, Apple Home/HomeKit, Home Assistant, Alexa/Google, IKEA DIRIGERA) and how to keep them aligned. Use whenever naming or renaming a device, room or group, adding a new device or a new ecosystem (Matter, Thread, HomeKit, Home Assistant, DIRIGERA, Alexa), validating names (bin/shelly-name-check), or when a device shows different names in different apps.
+description: The house naming convention for smart home devices, and where device names live (on the device, Shelly app/cloud, Matter, Apple Home/HomeKit, Home Assistant, Alexa/Google, IKEA DIRIGERA) and how to keep them aligned. Use whenever naming or renaming a device, room, group, scene or virtual component, adding a new device or a new ecosystem (Matter, Thread, HomeKit, Home Assistant, DIRIGERA, Alexa), validating names (bin/shelly-name-check), or when a device shows different names in different apps.
 ---
 
 # Naming devices
@@ -60,6 +60,18 @@ IDs/MACs are in the device table in `CLAUDE.local.md`.
 | Tapparella soggiorno | Soggiorno |
 | Tapparella porta soggiorno | Soggiorno |
 | Tapparella studio | Studio |
+
+## Scenes, groups and virtual components (2026-10-02)
+
+The device convention doesn't fit these: a scene is named for what it does, as a phrase someone would say; a virtual component for the value it holds. Both are in Italian (household-visible) and follow the same hard rules (`bin/shelly-name-check`).
+
+| Name | Kind | What |
+|---|---|---|
+| Inizia la notte del giudizio | Scene | the-purge: close all |
+| Finisci la notte del giudizio | Scene | the-purge: open all (kitchen to its limit) |
+| Limite apertura | Virtual number on Tapparella cucina (`number:200`, hidden in the app) | `kitchen-limit` |
+
+**One scene per action.** Other languages and wordings for voice ("Begin the purge", "Inizia il giorno del giudizio") go in `config/automations.json` under `voice` and into the voice assistant when it's set up, not into extra scenes (user's decision, 2026-10-02; shelly-config skill). The English alias scenes that existed briefly were deleted. No group names yet.
 
 ## Smaller notes
 
