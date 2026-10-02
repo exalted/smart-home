@@ -1,0 +1,80 @@
+#!/bin/sh
+# Usage: shelly-script-put [--boot] [--start] FILE
+#
+# Installs FILE as a script on every device read from stdin (bare IPs, or
+# JSON lines with "ip"). The script is named after the file without ".js"
+# (scripts/cover-clamp.js -> "cover-clamp"), which is how schedules and
+# other scripts find it. Creates it if no script has that name, otherwise
+# stops it and replaces its code. Prints each input object plus "script",
+# "script_id", "boot" and "running".
+#
+#   --boot   start it at every boot (Script.SetConfig enable); otherwise
+#            boot start is turned off
+#   --start  also start it now
+#
+# Example:
+#   echo 192.168.179.19 | shelly-script-put --boot scripts/daily-once.js
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+# Script.PutCode takes the code in pieces; Shelly's own upload tools use 1024.
+CHUNK=1024
+
+if [ "${1:-}" = --worker ]; then
+  boot=$2 start=$3 file=$4 line=$5
+  name=$(basename "$file" .js)
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  fail() {
+    printf '%s' "$line" | jq -c --arg s "$1" --argjson r "$2" '. + {error: ($r.error + {step: $s})}'
+    exit 1
+  }
+  # Runs in this shell, not in $(...), so a failure exits the worker; the
+  # response is left in $resp.
+  call() {
+    resp=$(shelly_call "$ip" "$1" "${2:-null}")
+    printf '%s' "$resp" | jq -e '.error == null' >/dev/null || fail "$1" "$resp"
+  }
+
+  call Script.List
+  id=$(printf '%s' "$resp" | jq --arg n "$name" '[.result.scripts[] | select(.name == $n) | .id] | first // empty')
+  if [ -z "$id" ]; then
+    call Script.Create "$(jq -nc --arg n "$name" '{name: $n}')"
+    id=$(printf '%s' "$resp" | jq .result.id)
+  else
+    call Script.Stop "{\"id\":$id}"
+  fi
+
+  size=$(jq -Rs 'length' "$file")
+  offset=0
+  while [ "$offset" -lt "$size" ] || [ "$offset" -eq 0 ]; do
+    call Script.PutCode "$(jq -Rsc --argjson id "$id" --argjson o "$offset" --argjson n "$CHUNK" \
+      '{id: $id, code: .[$o:$o + $n], append: ($o > 0)}' "$file")"
+    offset=$((offset + CHUNK))
+  done
+
+  call Script.SetConfig "{\"id\":$id,\"config\":{\"enable\":$boot}}"
+  if [ "$start" = 1 ]; then
+    call Script.Start "{\"id\":$id}"
+  fi
+  call Script.GetStatus "{\"id\":$id}"
+  running=$(printf '%s' "$resp" | jq .result.running)
+  printf '%s' "$line" | jq -c --arg n "$name" --argjson id "$id" --argjson b "$boot" --argjson r "$running" \
+    '. + {script: $n, script_id: $id, boot: $b, running: $r}'
+  exit
+fi
+
+boot=false start=0
+while :; do
+  case ${1:-} in
+    -h | --help) usage_from_header; exit 0 ;;
+    --boot) boot=true; shift ;;
+    --start) start=1; shift ;;
+    *) break ;;
+  esac
+done
+[ $# -eq 1 ] || { usage_from_header >&2; exit 2; }
+need curl jq
+[ -r "$1" ] || die "cannot read $1"
+
+shelly_each "$0" --worker "$boot" "$start" "$1" || exit 1

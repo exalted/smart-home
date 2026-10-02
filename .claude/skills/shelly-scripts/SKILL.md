@@ -1,0 +1,75 @@
+---
+name: shelly-scripts
+description: Write, install, schedule and test on-device scripts (mJS) for the Shelly devices the house way, as small, generic, composable "one job" scripts in scripts/ that take JSON arguments from their caller (Script.Start + Script.Eval "main(...)") and stop themselves. Covers the conventions, the script catalog (cover-clamp, daily-once), bin/shelly-script-put, bin/shelly-schedule-exec, testing with a near-future schedule and a reboot, and verified engine facts (Schedule.Eval, Script.Eval, KVS, language limits). Use whenever an automation needs a condition, a script is written or changed, or a schedule should run a script.
+---
+
+# On-device scripts
+
+Scripts live in `scripts/` (one file each, English names and code) and run on the devices. The user's rules (2026-10-02):
+
+- **Generic, not device-specific**: no positions, times, cover ids or script ids in the code. Everything specific comes in as arguments, so the same script serves any device, group or future workflow.
+- **One job each, composable** (Unix philosophy): a script either decides *when* (a trigger like `daily-once`) or *what* (an action like `cover-clamp`); bigger workflows are compositions, not bigger scripts.
+- **Efficient and fast**: no polling, no idle timers, stopped when not working.
+
+## The exec convention
+
+Every script defines `main(args)` and does nothing else at top level except an idle guard. Callers run it with two RPC calls, which together act like `exec script args`:
+
+```json
+[{"method": "Script.Start", "params": {"id": 2}},
+ {"method": "Script.Eval",  "params": {"id": 2, "code": "main({\"max\":35})"}}]
+```
+
+- **Args are strict JSON** (quoted keys), so tools and `daily-once`'s catch-up can parse them back.
+- **The script stops itself** when done (`Script.Stop` on `Shelly.getCurrentScriptId()`), and has `Timer.set(30000, false, stop)` at top level so a start without `main()` doesn't hold one of the device's **3 running-script slots**.
+- **It returns what it did as short text**: `Script.Eval`'s `result` is `main`'s return value as a string (`"undefined"` if none), so a caller can collect it like stdout.
+- **Boot start only when needed** (`daily-once` needs it for catch-up; actions don't).
+- **Name = file name without `.js`**: callers find scripts by name, because ids differ per device.
+- **Acts on its own device only.** Guest-to-guest traffic is on only during setup sessions, so a script must never call another device (shelly-automation skill, network constraint).
+
+Why not resident scripts with events (`Shelly.emitEvent`): each would take one of the 3 running slots and RAM all the time, which doesn't scale to many small scripts. Why not arguments in KVS: they can't vary per call without flash writes and races.
+
+## Catalog
+
+| Script | Job | Args | Boot |
+|---|---|---|---|
+| `cover-clamp` | Keep a cover within `[min, max]`: lower to max if more open, raise to min if more closed; leave it alone while it moves (someone is using it) or when the position is unknown | `{"id": 0, "min": n, "max": n}` (id defaults to 0, each bound optional) | no |
+| `daily-once` | Run `then` once a day as soon as every timespec in `after` has fired today; record the day and each call's result in KVS `daily-once.<key>`; at boot, re-run its own schedule jobs (catch-up, safe because each key runs once a day) | `{"key": "...", "after": ["@sunrise", "0 0 7 * * *"], "then": [{"script": "cover-clamp", "args": {...}} or {"method": "...", "params": {...}}]}` | yes |
+
+`daily-once` must be started a minute **after** each `after` time (e.g. jobs `@sunrise+1m` and `0 1 7 * * *`), because `Schedule.Eval`'s `prev` excludes the current second.
+
+## Tools
+
+```sh
+# install or update (name from the file); --boot only for scripts that need it
+bin/shelly-scan | jq -c 'select(.name == "Tapparella cucina")' > .scratch/dev.jsonl
+bin/shelly-script-put scripts/cover-clamp.js < .scratch/dev.jsonl
+bin/shelly-script-put --boot scripts/daily-once.js < .scratch/dev.jsonl
+# schedule a run with arguments (no duplicate if the same job exists)
+bin/shelly-schedule-exec '@sunrise+1m' daily-once '{"key":"kitchen-morning","after":["@sunrise","0 0 7 * * *"],"then":[{"script":"cover-clamp","args":{"max":35}}]}' < .scratch/dev.jsonl
+# what happened on the last run
+bin/shelly-rpc KVS.Get '{"key":"daily-once.kitchen-morning"}' < .scratch/dev.jsonl
+```
+
+Updating a script's code keeps its id, so existing schedule jobs keep working. Deleting and recreating a script changes its id: recreate its jobs too. Run `node --check FILE` before installing to catch syntax errors (it doesn't know Shelly's limits, below).
+
+## Testing a new script or workflow
+
+Test the trigger and every branch, not just the action (this is how kitchen-morning was tested, 2026-10-02):
+
+1. Run the action alone with Start + Eval and read the returned text.
+2. Copy the trigger's args with an `after` time 2–3 minutes ahead and a test key, schedule it a minute after that with `bin/shelly-schedule-exec`, and run it once by hand first: it should do nothing ("not fired yet": no KVS record, no move).
+3. Let the job fire with the cover moved past the bound; check the move and the KVS record. Run it again by hand: "already done today", no move.
+4. Delete the test key's KVS record and reboot the device (`bin/shelly-reboot`): the catch-up should act within seconds of boot.
+5. Delete the test job and the test KVS key, create the real jobs, and if today's run time has passed, write today's record by hand so a reboot later today doesn't act. Then refresh the backup (shelly-backup skill).
+
+Warn the user before each test that moves a cover, and the door-cover rule applies (shelly-automation skill).
+
+## Engine facts (firmware 2.0.1, observed 2026-10-02 on Tapparella cucina)
+
+- `Schedule.Eval {"timespec", "now"}` returns `prev`/`next` Unix times using the device's timezone, DST and location. `prev` **excludes** `now` itself: at exactly 07:00:00 the prev of `0 0 7 * * *` is yesterday's. Sunrise/sunset come at minute resolution (e.g. 07:10:00). `@sunrise+1m` is accepted by `Schedule.Eval` and `Schedule.Create`.
+- `Script.Start` on a stopped script returns `{"was_running": false}` after running its top level, so a `Script.Eval` right after it (from RPC or as the next call in one schedule job) finds `main` defined.
+- `KVS.Set` accepts objects as values (`{"day": ..., "at": ..., "results": [...]}`), and keys with dots and dashes (`daily-once.kitchen-morning`). A missing key gives error -105.
+- A small script has about 25 KB free memory (`Script.GetStatus` `mem_free`).
+- Language (official docs): no hoisting (define functions before the code that runs them), no classes, Promises or async; `let`/`var`, exceptions, `JSON`, `Object.keys`, arrays with `push`/`pop`/`slice`/`indexOf`. Strings are byte arrays (`\xHH`, no `\u`). Concatenate numbers through `JSON.stringify(n)` (as the scripts here do; plain `"a" + n` untested).
+- Logs: `print()` goes to the device's debug log, which isn't enabled here; prefer return values and KVS records for what a run did.

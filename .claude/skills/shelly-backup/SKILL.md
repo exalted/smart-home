@@ -35,7 +35,7 @@ After every task that changes device settings (names, cover settings, obstructio
 
 ## What the devices have in common
 
-As of 2026-10-02 the 10 profiles are identical apart from `sys.device.name`, `cover:0.obstruction_detection.power_thr` and `sys.cfg_rev`. To see what differs:
+As of 2026-10-02 the 10 profiles are identical apart from `sys.device.name`, `cover:0.obstruction_detection.power_thr` and `sys.cfg_rev`, plus the scripts, schedule jobs and KVS keys of the automations (CLAUDE.md, Automations; so far only on Tapparella cucina). To see what differs:
 
 ```sh
 jq -s 'map(.config | del(.sys.device.name, .sys.cfg_rev)) as $c
@@ -51,5 +51,6 @@ Not done yet; a restore tool is to be written when it's first needed. The steps,
 2. Add it in the Shelly app: Wi-Fi "FRITZ!Box guest access", the right room, the app name (shelly-rename-device skill).
 3. Update the firmware to at least the `ver` in its profile, and switch to the `cover` profile if it came as `switch` (`Shelly.SetProfile`).
 4. Apply the settings from `devices/<name>.json` with `bin/shelly-rpc` per component (`Sys.SetConfig`, `Cover.SetConfig`, `Input.SetConfig`, `BLE.SetConfig`, ...), skipping read-only fields such as `sys.device.fw_id`, `profile`, `cfg_rev` and the redacted ones. Take what the public copy leaves out (BLE, `enhanced_security`) from the latest local backup in `backups/`. Location (`sys.location`) is probably set during setup in the app (not verified).
-5. Test the direction, calibrate, then set the obstruction threshold to the new calibrated value + 10% (shelly-cover-direction, shelly-cover-calibration, shelly-cover-obstruction skills).
-6. Put the new MAC and IP in `CLAUDE.local.md`, and take a new backup.
+5. Reinstall its automations: the scripts from `scripts/` (code isn't in `devices/`, only names and boot flags), then the schedule jobs as listed in its profile, with `bin/shelly-schedule-exec` since script ids may differ (shelly-scripts skill).
+6. Test the direction, calibrate, then set the obstruction threshold to the new calibrated value + 10% (shelly-cover-direction, shelly-cover-calibration, shelly-cover-obstruction skills).
+7. Put the new MAC and IP in `CLAUDE.local.md`, and take a new backup.

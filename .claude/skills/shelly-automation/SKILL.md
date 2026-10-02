@@ -15,7 +15,8 @@ Reference files in this folder: [app-ui.md](app-ui.md) (what the Shelly app's gr
 
 - **Free routes only**, unless Premium is *absolutely* necessary (the user's choice, 2026-10-02). When a cloud feature is Premium, look for the free route first (device schedules, scripts, Home Assistant later). If Premium really seems the only way, say so explicitly and why, and let the user decide. So far nothing needs it.
 - **No alarm devices or thermostats, and none planned.** Ignore the app's Alarm-based conditions, Alarm actions, the Alarms tab, and the Thermostat group type and tab.
-- **Nothing is automated yet** (2026-10-02): no groups or scenes in the app, no schedules, scripts or webhooks on any device. The user said not to build anything yet.
+- **Current automations** are listed in CLAUDE.md (Home setup, Automations); the first, `kitchen-morning`, went in on 2026-10-02. Check there and in the device backups before adding one, so they don't fight (see "Several automations together").
+- **Scripts are generic and composable**, one job each, specifics passed as arguments: reuse or compose what's in `scripts/` before writing a new one (shelly-scripts skill).
 - The user also moves covers from the Shelly iPhone app. When a cover moves and you didn't command it, don't assume who or what did it; ask the user (CLAUDE.md, Cloud).
 
 ## The building blocks
@@ -51,12 +52,12 @@ None of the use cases so far needs Premium.
 
 ### This home's network constraint
 
-The devices sit on the FRITZ!Box guest Wi-Fi, with guest-to-guest traffic normally off. So locally a device can only act on **its own** cover: a webhook, schedule or script that commands *other* devices needs guest-to-guest communication on permanently, plus stable IPs (DHCP reservations; IPs come from DHCP today). A future Home Assistant on the main network can't reach the devices either. Until the network changes, the local pattern is "one schedule/webhook/script per device, acting on itself", and commands for several covers go through the cloud. Devices do reach the internet, so scripts can call a weather API.
+The devices sit on the FRITZ!Box guest Wi-Fi, with guest-to-guest traffic off day to day: the user turns it on only during setup sessions, so never design an automation around what works while it happens to be on (user, 2026-10-02). So locally a device can only act on **its own** cover: a webhook, schedule or script that commands *other* devices needs guest-to-guest communication on permanently, plus stable IPs (DHCP reservations; IPs come from DHCP today). A future Home Assistant on the main network can't reach the devices either. Until the network changes, the local pattern is "one schedule/webhook/script per device, acting on itself", and commands for several covers go through the cloud. Leaving guest-to-guest on permanently is acceptable only if absolutely necessary, when there is no other way; propose it to the user, never assume it. Devices do reach the internet, so scripts can call a weather API.
 
 ## Choosing the block
 
 1. Fixed time or sunrise/sunset, optionally by weekday/month → **device schedule** on each cover concerned.
-2. Needs a condition (weather, a vacation switch, "not before 07:00", "only if the door is closed") → **script** on each cover concerned (schedules can't check anything).
+2. Needs a condition (weather, a vacation switch, "not before 07:00", "only if the door is closed") → **script** on each cover concerned (schedules can't check anything), composed from the generic scripts in `scripts/` where possible (shelly-scripts skill).
 3. One button or one voice command for many covers → **group** (cloud), plus a "Manual execution" scene if it needs a sequence.
 4. Reacting to another cover or device → cloud **scene** with a device-based Trigger, or local webhook/script once the network allows it.
 5. Something only a hub does well (sun on a facade, presence, real sensors) → note it for **Home Assistant**.
@@ -66,7 +67,7 @@ The devices sit on the FRITZ!Box guest Wi-Fi, with guest-to-guest traffic normal
 Positions: 100 = open, 0 = closed. "Half" is 50 % of the calibrated travel *time*, not exactly half the height: pick numbers by watching. All moves follow the shelly-cover-control rule.
 
 1. **Close all covers fully.** A Roller group with all 10 (Global) gives one app button and works in scenes and with voice; cloud only. Locally today: `bin/shelly-scan | bin/shelly-cover-move close` from the guest network. **Door-cover reminder: "all covers" includes the three door covers; offer a "windows only" group as well.**
-2. **Open some covers at wake-up.** Fixed times: device schedule on each bedroom cover, separate weekday/weekend jobs; local, outage-proof. Sunrise-relative: `@sunrise+30m`. "Sunrise, but never before 07:00" is not one cron (two jobs give the *earlier* time): use a script or per-month fixed times. Gentle wake-up: 30 %, then 100 % a few minutes later. On the actual phone alarm: an iPhone personal automation "when alarm is stopped" calling the Cloud Control API or Apple Home (untried; Apple Home needs Matter). Opening is not a lockout risk.
+2. **Open some covers at wake-up.** Fixed times: device schedule on each bedroom cover, separate weekday/weekend jobs; local, outage-proof. Sunrise-relative: `@sunrise+30m`. "Sunrise, but never before 07:00" is not one cron (two jobs give the *earlier* time): use `daily-once` with `"after": ["@sunrise", "0 0 7 * * *"]` and jobs at `@sunrise+1m` and `0 1 7 * * *`, as `kitchen-morning` does (built 2026-10-02; it also catches up after an outage). "Only if it's more open than X" is `cover-clamp {"max": X}`. Gentle wake-up: 30 %, then 100 % a few minutes later. On the actual phone alarm: an iPhone personal automation "when alarm is stopped" calling the Cloud Control API or Apple Home (untried; Apple Home needs Matter). Opening is not a lockout risk.
 3. **Half-close some covers after 14:00.** Device schedule `0 0 14 * * *` → `Cover.GoToPosition` 50 on each, with months (`MAY-SEP`) if it's for summer sun, and a second job to open again. Free approximation of "only when the sun is on that facade": per-month schedule sets matching when the sun reaches that side; skip on cloudy days with a script (Open-Meteo cloud cover or radiation). Exact sun position needs Home Assistant. **Door-cover reminder if any door cover is included**, even half-closed.
 4. **Close covers on the side the rain comes from.** Needs each window's facing direction (unknown yet), "raining now", and wind direction (meteorological: where the wind comes *from*; rain mostly hits facades facing within about ±60° of it, and only with some wind). Free: a script on each window cover polling Open-Meteo every 10–15 min (`current=precipitation,rain,showers,wind_direction_10m,wind_speed_10m`), closing when it rains from its side; model data on a ~2 km grid, not hyperlocal. Most reliable: a real rain sensor plus wind direction, with Home Assistant. Roller shutters themselves don't mind rain; this protects open windows, doors and sills. In strong wind, half-lowered shutters can rattle: ask what the shutter maker recommends. **Door-cover reminder: rain arrives exactly when someone may have stepped out to fetch laundry or plants; keep door covers out or require a door contact.**
 5. **Vacation: light for the plants, winter vs summer.** Device schedules (they survive internet and cloud outages while nobody is home), months for the seasons, created disabled and enabled for the trip (or a script reading a "vacation" virtual boolean). For example winter (`NOV-FEB`): open fully at `@sunrise+30m`, close at `@sunset`. Summer (`MAY-SEP`): open at sunrise, lower sun-facing covers to 30–50 % from late morning to mid-afternoon, open again, close at sunset. Shoulder months in between. Frozen shutters in winter: obstruction detection stops the motor; a script could skip opening below 0 °C. Door covers may be included here, since the house is empty, but **say the lockout reminder anyway and switch the set off on return**.
@@ -85,7 +86,7 @@ Positions: 100 = open, 0 = closed. "Half" is 50 % of the calibrated travel *time
 
 - A command for a whole room (no such action; use a group).
 - Date ranges or months in scenes (active time is weekdays + hours only); free sunrise/sunset or weather in scenes.
-- "max(sunrise + x, fixed time)" in a single schedule; conditions in schedules.
+- "max(sunrise + x, fixed time)" in a single schedule; conditions in schedules. (Two schedule jobs plus `daily-once` do it.)
 - Local device-to-device commands, and Home Assistant reaching the devices, on today's network.
 - Groups or scenes during an internet outage.
 
@@ -100,7 +101,7 @@ If one of these turns out possible after all (new firmware, app update, another 
 
 ## Still to verify (and how)
 
-- Firmware 2.0.1 accepts the full timespec (months, `@sunrise` with fields, `@random`, year): `Schedule.Create` a disabled job on the pilot device (Tapparella studio), read it back with `Schedule.List`, delete it.
+- Firmware 2.0.1 accepts the full timespec (months, `@sunrise` with fields, `@random`, year): `Schedule.Create` a disabled job on the pilot device (Tapparella studio), read it back with `Schedule.List`, delete it. `@sunrise`, `@sunrise+1m` and plain 6-field crons work (observed 2026-10-02); `Schedule.Eval` checks a timespec without creating a job.
 - Schedules after a power cut, before the clock syncs (the devices are believed to have no battery-backed clock): reboot the pilot and read `Sys.GetStatus` time while watching a test job.
 - A webhook calling the device's own RPC (`http://127.0.0.1/rpc/...`) for same-device actions with isolation on.
 - Whether the app shows virtual components as controls (a vacation switch the user can tap).
@@ -109,7 +110,7 @@ If one of these turns out possible after all (new firmware, app update, another 
 
 ## Testing an automation
 
-Test the trigger or condition, not just the actions: a manual run hides a wrong trigger. For a schedule, add a one-off job a few minutes ahead on the pilot device with the user watching, then delete or disable it. In scenes, turn off "Execute the scene on save or edit" before saving anything that moves covers. After any change to device settings (schedules, webhooks, scripts and virtual components are in the backup), refresh the backup (shelly-backup skill).
+Test the trigger or condition, not just the actions: a manual run hides a wrong trigger. For a schedule, add a one-off job a few minutes ahead on the pilot device with the user watching, then delete or disable it. For script-based automations follow the test steps in the shelly-scripts skill (early run, scheduled run, already done, reboot catch-up). In scenes, turn off "Execute the scene on save or edit" before saving anything that moves covers. After any change to device settings (schedules, webhooks, scripts and virtual components are in the backup), refresh the backup (shelly-backup skill).
 
 ## Keeping this skill true
 

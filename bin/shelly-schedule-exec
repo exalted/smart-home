@@ -1,0 +1,57 @@
+#!/bin/sh
+# Usage: shelly-schedule-exec TIMESPEC SCRIPT [ARGS_JSON]
+#
+# On every device read from stdin (bare IPs, or JSON lines with "ip"),
+# schedules a run of the script named SCRIPT with ARGS_JSON (default {}):
+# a job whose calls are Script.Start and Script.Eval "main(ARGS_JSON)",
+# which is how the scripts in scripts/ take arguments. The script must be
+# installed already (shelly-script-put). An identical job is not created
+# twice. Prints each input object plus "schedule_id" and "created".
+#
+# Example:
+#   echo 192.168.179.4 | shelly-schedule-exec '@sunrise+1m' daily-once \
+#     '{"key":"kitchen-morning","after":["@sunrise","0 0 7 * * *"],"then":[]}'
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+if [ "${1:-}" = --worker ]; then
+  timespec=$2 name=$3 args=$4 line=$5
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  fail() {
+    printf '%s' "$line" | jq -c --arg s "$1" --argjson r "$2" '. + {error: ($r.error + {step: $s})}'
+    exit 1
+  }
+  # Runs in this shell, not in $(...), so a failure exits the worker; the
+  # response is left in $resp.
+  call() {
+    resp=$(shelly_call "$ip" "$1" "${2:-null}")
+    printf '%s' "$resp" | jq -e '.error == null' >/dev/null || fail "$1" "$resp"
+  }
+
+  call Script.List
+  id=$(printf '%s' "$resp" | jq --arg n "$name" '[.result.scripts[] | select(.name == $n) | .id] | first // empty')
+  [ -n "$id" ] || fail Script.List "$(jq -nc --arg n "$name" '{error: {message: "no script named \($n)"}}')"
+
+  job=$(jq -nc --arg t "$timespec" --argjson id "$id" --argjson a "$args" '{
+    enable: true, timespec: $t,
+    calls: [{method: "Script.Start", params: {id: $id}},
+            {method: "Script.Eval", params: {id: $id, code: "main(\($a | tojson))"}}]}')
+  call Schedule.List
+  existing=$(printf '%s' "$resp" | jq --argjson j "$job" \
+    '[.result.jobs[] | select(.timespec == $j.timespec and .calls == $j.calls) | .id] | first // empty')
+  if [ -n "$existing" ]; then
+    printf '%s' "$line" | jq -c --argjson s "$existing" '. + {schedule_id: $s, created: false}'
+    exit
+  fi
+  call Schedule.Create "$job"
+  printf '%s' "$line" | jq -c --argjson s "$(printf '%s' "$resp" | jq .result.id)" '. + {schedule_id: $s, created: true}'
+  exit
+fi
+case ${1:-} in -h | --help) usage_from_header; exit 0 ;; esac
+[ $# -eq 2 ] || [ $# -eq 3 ] || { usage_from_header >&2; exit 2; }
+need curl jq
+args=${3:-'{}'}
+printf '%s' "$args" | jq -e 'type == "object"' >/dev/null 2>&1 || die "ARGS_JSON is not a JSON object: $args"
+
+shelly_each "$0" --worker "$1" "$2" "$(printf '%s' "$args" | jq -c .)" || exit 1
