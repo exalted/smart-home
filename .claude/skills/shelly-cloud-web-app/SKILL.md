@@ -9,7 +9,9 @@ Use the Chrome DevTools MCP (`mcp__plugin_chrome-devtools-mcp_chrome-devtools__*
 
 ## Login
 
-Open `https://control.shelly.cloud/` with `new_page`. It lands on `#/login`. Ask the user to log in in that Chrome window, and never type their credentials. Continue once they say they're in.
+Open `https://control.shelly.cloud/` with `new_page`. It lands on `#/login`. Ask the user to log in in that Chrome window, and never type their credentials. Continue once they say they're in. The MCP's Chrome profile keeps the login, so a later session often lands straight on the dashboard.
+
+If every MCP call fails with "The browser is already running for …/chrome-devtools-mcp/chrome-profile", another Claude Code session's MCP still holds that Chrome (one profile, one browser). Find it with `command ps -axo pid,lstart,command | command grep chrome-profile`, tell the user which session owns it, and let them choose. On 2026-10-02 they chose to quit that Chrome; `kill -TERM <pid>` closed it cleanly in 2 s and the login survived.
 
 ## Reading cloud data (better than scraping the UI)
 
