@@ -11,7 +11,8 @@
 #   2  this machine has no address on the guest network
 #   3  on the guest network but no device answers, i.e. guest isolation is on
 #      ("Wireless devices may communicate with each other" is off in
-#      FRITZ!Box > Wi-Fi > Guest Access)
+#      FRITZ!Box > Wi-Fi > Guest Access, which is only reachable from the
+#      main network)
 
 set -eu
 . "$(dirname "$0")/../lib/shelly.sh"
@@ -23,13 +24,13 @@ mine=$( (ifconfig 2>/dev/null || ip -4 addr 2>/dev/null) |
   sed -n 's/.*inet \([0-9.]*\).*/\1/p' |
   awk -v prefix="$subnet." 'index($0, prefix) == 1 { print; exit }')
 if [ -z "$mine" ]; then
-  echo "not ready: this machine has no address in $subnet.0/24; join the \"FRITZ!Box guest access\" Wi-Fi"
+  echo "not ready: this machine has no address in $subnet.0/24; from the main network, enable \"Wireless devices may communicate with each other\" in FRITZ!Box > Wi-Fi > Guest Access (unless it's on already), then join the \"FRITZ!Box guest access\" Wi-Fi"
   exit 2
 fi
 
 count=$("$(dirname "$0")/shelly-scan" "$subnet" | grep -c . || true)
 if [ "$count" -eq 0 ]; then
-  echo "not ready: on the guest network as $mine, but no Shelly device answers; enable \"Wireless devices may communicate with each other\" in FRITZ!Box > Wi-Fi > Guest Access"
+  echo "not ready: on the guest network as $mine, but no Shelly device answers; go back to the main network, enable \"Wireless devices may communicate with each other\" in FRITZ!Box > Wi-Fi > Guest Access, then rejoin the guest network"
   exit 3
 fi
 echo "ready: on the guest network as $mine, $count Shelly devices answer"

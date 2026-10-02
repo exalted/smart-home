@@ -5,10 +5,10 @@ description: Get and verify local network access to the home's Shelly devices (F
 
 # Local access to the Shelly devices
 
-The Shelly devices live on the FRITZ!Box guest Wi-Fi "FRITZ!Box guest access" (192.168.179.0/24, gateway 192.168.179.1). This Mac normally sits on the main network (name in `CLAUDE.local.md`), which FRITZ!Box isolates from the guest network. Local access needs two things only the user can do:
+The Shelly devices live on the FRITZ!Box guest Wi-Fi "FRITZ!Box guest access" (192.168.179.0/24, gateway 192.168.179.1). This Mac normally sits on the main network (name in `CLAUDE.local.md`), which FRITZ!Box isolates from the guest network. Local access needs two things only the user can do, in this order:
 
-1. Join this Mac to the guest Wi-Fi.
-2. Allow guest-to-guest traffic: FRITZ!Box > Wi-Fi > Guest Access > "Wireless devices may communicate with each other" ON. With it off, guest devices reach only the router, so nothing answers even though the Mac is on the right network.
+1. While still on the main network, allow guest-to-guest traffic: FRITZ!Box > Wi-Fi > Guest Access > "Wireless devices may communicate with each other" ON. With it off, guest devices reach only the router, so nothing answers even though the Mac is on the right network. The FRITZ!Box settings are only reachable from the main network, so this comes first (the user's instruction, 2026-10-02). Open the router's web admin UI for the user (URL in `CLAUDE.local.md`) with `command open <url>`.
+2. Then join this Mac to the guest Wi-Fi.
 
 ## First, is the cloud enough?
 
@@ -19,8 +19,8 @@ The Shelly app and control.shelly.cloud can rename devices, reboot a single devi
 Run `bin/shelly-netcheck` from the repo root. It prints one line and exits with:
 
 - `0` ready: go ahead.
-- `2` not on the guest network: ask the user to join "FRITZ!Box guest access" and to say when they're on it.
-- `3` on the guest network, but no device answers: ask the user to turn on "Wireless devices may communicate with each other" in FRITZ!Box > Wi-Fi > Guest Access.
+- `2` not on the guest network: ask the user to turn on "Wireless devices may communicate with each other" first (from the main network) unless it's already on, then to join "FRITZ!Box guest access" and say when they're on it.
+- `3` on the guest network, but no device answers: guest isolation is on. The user has to switch back to the main network, turn on "Wireless devices may communicate with each other" in FRITZ!Box > Wi-Fi > Guest Access, and then rejoin the guest network.
 
 Run it again after the user confirms.
 
@@ -33,7 +33,7 @@ The user switches networks manually, in both directions, and asked to be told wh
 Say so right away rather than waiting to be asked, because it's easy to forget:
 
 - The user can switch back to the main network.
-- They may want to turn "Wireless devices may communicate with each other" off again. While it's on, anyone on the guest Wi-Fi can reach the devices.
+- Once back there, they may want to turn "Wireless devices may communicate with each other" off again (the setting is only reachable from the main network; open the admin UI for them). While it's on, anyone on the guest Wi-Fi can reach the devices.
 
 ## Diagnostics when netcheck's verdict looks wrong
 
