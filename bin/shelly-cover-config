@@ -4,8 +4,9 @@
 # Reads devices on stdin (bare IPs, or JSON lines with "ip", e.g. from
 # shelly-scan) and prints one JSON line per device with the cover:0 settings
 # that decide how it moves: invert_directions, swap_inputs, in_mode,
-# in_locked, maintenance_mode, maxtime_open, maxtime_close. Input fields are
-# kept. Devices without a cover get an error.
+# in_locked, maintenance_mode, maxtime_open, maxtime_close, and obstruction
+# detection (obstruction_enable, _direction, _action, _power_thr, _holdoff).
+# Input fields are kept. Devices without a cover get an error.
 #
 # Example: shelly-scan | shelly-cover-config | shelly-table name invert_directions swap_inputs in_mode
 
@@ -26,6 +27,7 @@ if [ "${1:-}" = --worker ]; then
           maintenance_mode: $r.maintenance_mode,
           maxtime_open: $r.maxtime_open, maxtime_close: $r.maxtime_close
         }
+      + ($r.obstruction_detection // {} | with_entries(.key |= "obstruction_" + .))
     end')
   printf '%s\n' "$out"
   printf '%s' "$out" | jq -e '.error == null' >/dev/null

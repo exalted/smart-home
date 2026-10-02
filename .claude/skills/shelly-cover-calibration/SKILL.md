@@ -29,7 +29,7 @@ All 10 at once, 2026-10-02, firmware 2.0.1: all succeeded, no errors. Windows to
 - `pos_control: true`, state `open`, position 100. One device read `current_pos: null` right at the end and 100 a second later; the tool re-reads once for that.
 - The Shelly app (control.shelly.cloud) showed the position slider at "Opened 100%" for all 10 straight away.
 - `maxtime_open`/`maxtime_close` stayed at 60 s.
-- `obstruction_detection.power_thr` changed from 1000 W to 191–247 W, a little above each shutter's running power (160–220 W), so calibration seems to set it from the measured power. `obstruction_detection.enable` stayed `false`.
+- `obstruction_detection.power_thr` changed from 1000 W to 191–247 W, a little above each shutter's running power (160–220 W), so calibration seems to set it from the measured power. `obstruction_detection.enable` stayed `false`. **After every calibration, re-apply this home's threshold (calibrated + 10%) as described in the shelly-cover-obstruction skill.**
 - Calibrated covers stop by themselves at the end and at a target position (shelly-cover-control skill).
 
 ## Uncalibrated covers keep the output on

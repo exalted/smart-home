@@ -1,0 +1,92 @@
+#!/bin/sh
+# Usage: shelly-cover-obstruction on|off [--direction both|open|close]
+#          [--action stop|reverse] [--power-thr WATTS] [--holdoff SECONDS]
+#
+# Turns obstruction detection on or off on the cover of every device read
+# from stdin (bare IPs, or JSON lines with "ip"): above the power threshold the
+# cover stops (or reverses) and reports an "obstruction" error, which the next
+# open/close/position command clears. Options left out keep the device's
+# current value. The threshold can also come per device from the input field
+# "obstruction_power_thr" (--power-thr wins), e.g. computed with jq from
+# shelly-cover-config. Prints each input object plus the obstruction_* fields
+# read back from the device and "restart_required".
+#
+# Covers in motion are refused. A calibration sets its own threshold (seen
+# once), so check it again after calibrating.
+#
+# Example: shelly-scan | shelly-cover-config |
+#   jq -c '.obstruction_power_thr = (.obstruction_power_thr * 1.1 | round)' |
+#   shelly-cover-obstruction on --direction both --action stop
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+if [ "${1:-}" = --worker ]; then
+  set_json=$2 thr=$3 line=$4
+  ip=$(printf '%s' "$line" | jq -r .ip)
+  report() { printf '%s' "$line" | jq -c "$@"; }
+
+  status=$(shelly_call "$ip" Cover.GetStatus '{"id":0}')
+  if printf '%s' "$status" | jq -e .error >/dev/null; then
+    report --argjson s "$status" '. + {error: $s.error}'
+    exit 1
+  fi
+  state=$(printf '%s' "$status" | jq -r .result.state)
+  case $state in opening | closing | calibrating)
+    report --arg m "cover is $state" '. + {error: {message: $m}}'
+    exit 1
+    ;;
+  esac
+
+  params=$(printf '%s' "$line" | jq -c --argjson set "$set_json" --arg thr "$thr" '
+    {id: 0, config: {obstruction_detection: ($set
+      + (if $thr != "" then {power_thr: ($thr | tonumber)}
+         elif .obstruction_power_thr then {power_thr: .obstruction_power_thr}
+         else {} end))}}')
+  resp=$(shelly_call "$ip" Cover.SetConfig "$params")
+  if printf '%s' "$resp" | jq -e .error >/dev/null; then
+    report --argjson r "$resp" '. + {error: $r.error}'
+    exit 1
+  fi
+  config=$(shelly_call "$ip" Cover.GetConfig '{"id":0}')
+  report --argjson c "$config" --argjson r "$resp" '. +
+    ($c.result.obstruction_detection // {} | with_entries(.key |= "obstruction_" + .))
+    + {restart_required: $r.result.restart_required}'
+  exit
+fi
+
+case ${1:-} in
+  on) enable=true ;;
+  off) enable=false ;;
+  -h | --help) usage_from_header; exit 0 ;;
+  *) die "usage: shelly-cover-obstruction on|off [--direction both|open|close] [--action stop|reverse] [--power-thr WATTS] [--holdoff SECONDS]" ;;
+esac
+shift
+need curl jq
+
+set_json="{\"enable\":$enable}" thr=
+while [ $# -gt 0 ]; do
+  [ $# -ge 2 ] || die "$1 needs a value"
+  case $1 in
+    --direction)
+      case $2 in both | open | close) ;; *) die "--direction: both, open or close" ;; esac
+      set_json=$(printf '%s' "$set_json" | jq -c --arg v "$2" '. + {direction: $v}')
+      ;;
+    --action)
+      case $2 in stop | reverse) ;; *) die "--action: stop or reverse" ;; esac
+      set_json=$(printf '%s' "$set_json" | jq -c --arg v "$2" '. + {action: $v}')
+      ;;
+    --power-thr)
+      case $2 in '' | *[!0-9]*) die "--power-thr needs whole watts, got: $2" ;; esac
+      thr=$2
+      ;;
+    --holdoff)
+      case $2 in '' | *[!0-9.]* | .) die "--holdoff needs seconds, got: $2" ;; esac
+      set_json=$(printf '%s' "$set_json" | jq -c --argjson v "$2" '. + {holdoff: $v}')
+      ;;
+    *) die "unknown option: $1" ;;
+  esac
+  shift 2
+done
+
+shelly_each "$0" --worker "$set_json" "$thr" || exit 1
