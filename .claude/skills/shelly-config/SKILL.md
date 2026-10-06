@@ -18,6 +18,10 @@ Some values have to exist in more than one place, because the pieces that use th
 - Devices are named, never identified by ID or MAC (the file is public; IDs stay in `CLAUDE.local.md`).
 - `about` says what the value means and who uses it, so nobody has to reverse-engineer it.
 
+## Helper scenes don't replace this
+
+Helper scenes (`[helper] ...`, shelly-automation skill, recipe 7) make up for the branching scenes lack; they don't remove copies. Their numbers are copies like any other and are listed here (`bedroom-privacy`). A helper could hold a value once for several cloud scenes, as a subroutine started by a Scene action, which takes its own delay (app-ui.md). For example, one helper with the four door closes, started 2 min after the windows, would turn `purge-door-delay`'s four copies into one. It can't reach a device copy, though, so this file stays the one place. Not tried: whether disabling a scene also cancels its delayed Scene actions, which Finisci's abort would rely on (2026-10-06).
+
 ## Changing a value
 
 1. Edit `value` in the file.
