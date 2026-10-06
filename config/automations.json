@@ -22,9 +22,9 @@
       "unit": "%",
       "about": "Where the button Privacy o apri matrimoniale lowers the master bedroom door cover, for dressing or before sleep. Its helper scenes' conditions are derived from it: above value + 2 counts as more open (lower it), value - 2 to value + 2 as already there (open it fully), below that as more closed (do nothing)",
       "copies": [
-        {"scene": "helper - Privacy matrimoniale", "device": "Tapparella porta matrimoniale", "action": "set position"},
-        {"scene": "helper - Privacy matrimoniale", "device": "Tapparella porta matrimoniale", "action": "condition", "derived": "more than value + 2"},
-        {"scene": "helper - Apri matrimoniale", "device": "Tapparella porta matrimoniale", "action": "condition", "derived": "more than value - 3, and less than value + 3"}
+        {"scene": "[helper] Privacy matrimoniale", "device": "Tapparella porta matrimoniale", "action": "set position"},
+        {"scene": "[helper] Privacy matrimoniale", "device": "Tapparella porta matrimoniale", "action": "condition", "derived": "more than value + 2"},
+        {"scene": "[helper] Apri matrimoniale", "device": "Tapparella porta matrimoniale", "action": "condition", "derived": "more than value - 3, and less than value + 3"}
       ]
     },
     "purge-door-delay": {

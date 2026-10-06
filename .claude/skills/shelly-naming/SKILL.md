@@ -17,16 +17,41 @@ description: The house naming convention for smart home devices, and where devic
 
 The user chose this over keeping "finestra" in every name (too long), dropping the type (it would collide with future window sensors), and abbreviating "Tapparella" (bad for voice).
 
-## Hard rules, checked by `bin/shelly-name-check`
+## Hard rules for voice names, checked by `bin/shelly-name-check`
 
 | Rule | Why |
 |---|---|
-| Only ASCII letters, digits, and single spaces (one exception: the `helper - ` prefix, below) | HomeKit allows letters, digits, spaces, and apostrophes. Home Assistant transliterates accents in entity IDs. macOS (NFD) and other systems (NFC) store accented letters differently. Apostrophes and other symbols break shell quoting and Windows filenames. |
+| Only ASCII letters, digits, and single spaces | HomeKit allows only letters, digits, spaces, and apostrophes, so no hyphen ("must use only alphanumeric, space, and apostrophe characters", Home Assistant's HomeKit Bridge docs, checked 2026-10-06). Home Assistant transliterates accents in entity IDs. macOS (NFD) and other systems (NFC) store accented letters differently. Apostrophes and other symbols break shell quoting and Windows filenames. |
 | Starts and ends with a letter or digit | HomeKit rule |
 | At most 32 bytes | Matter `NodeLabel` limit, which also applies to bridged devices (DIRIGERA's Matter bridge, future Thread devices) |
 | Unique, ignoring case | Voice assistants, Home Assistant entity IDs, case-insensitive filesystems |
 
 Run `bin/shelly-name-check "Tapparella cucina" ...`, or pipe names in one per line. It exits 1 and lists each problem.
+
+## Voice names and non-voice names (2026-10-06)
+
+The hard rules above exist because a name may reach a voice assistant or an ecosystem that copies it (HomeKit, Matter, Siri, Alexa, Google, Home Assistant). A name that can never get there only has to work in the Shelly app, in this repo's files and tools, and for the household's eyes, so it may be looser (the user's request, 2026-10-06). Check those with `bin/shelly-name-check --no-voice`:
+
+| Rule for non-voice names | Why |
+|---|---|
+| ASCII letters, digits, single spaces and `- _ . , : ( ) [ ] + %` | Enough for "[helper] …" or "Limite (15%)". No quotes, backticks, backslashes or slashes, which break shell quoting, jq filters and file names in our tools. Brackets and parentheses are fine as data, but in a pattern (`grep`, `sed`, jq `test()`, an unquoted shell word) `[helper]` is a character class or a glob: search for such a name with `grep -F` or escape it. ASCII only, so names compare equal in every tool (no NFC/NFD surprises) |
+| No leading or trailing space | Invisible, and trimmed differently by different tools |
+| At most 50 bytes | The strictest Shelly app limit found: script names (`maxlength` 50). The web app (3.77.25) sets no limit and no character check on scene, room, group or device names, and 255 on virtual component text fields (its code, read 2026-10-06); the cloud took "[helper] Privacy matrimoniale". Long names also get cut on cards |
+| Unique, ignoring case | Names are how docs, `config/automations.json` and the tools refer to things |
+
+Which names are which:
+
+| Thing | Voice? | Why |
+|---|---|---|
+| Devices (on the device and in the app) | **Voice** | Alexa and Google discover them, Matter and Home Assistant copy them, HomeKit through Matter or HA |
+| Groups | **Voice** | Meant to be called as one ("Alexa, close the blinds"); Shelly's guide says groups work by voice |
+| Scenes people use (the button, the purge) | **Voice** | A scene reaches Alexa as a virtual device named after it once it gets an "Alexa Notify" action ([Shelly support](https://support.shelly.cloud/en/support/solutions/articles/103000294080-alexa-notify-in-shelly-smart-control-app-scenes-)), and Siri via a Shortcut; their other wordings live in `config/automations.json` (shelly-config skill) |
+| Rooms that are real rooms | **Voice** | Siri's "in cucina" uses HomeKit's rooms, which should mirror these by hand |
+| Helpers (scenes, groups or other things in the Helpers room) and that room | Non-voice | Only other scenes start them; never give them an Alexa Notify action or a Shortcut |
+| Hidden virtual components ("Limite apertura") | Non-voice | Not shown in the app; Home Assistant would presumably make them entities, which reach an assistant only if exposed there on purpose |
+| Script names, KVS keys, schedule jobs | Neither: technical | Their own convention, English kebab-case (shelly-scripts skill) |
+
+If a non-voice thing ever has to be called by voice, rename it to pass the voice rules first. Not verified: whether Google Home gets Shelly groups or scenes, and how long a name the Shelly cloud stores (nothing over 30 bytes tried).
 
 ## Where names live, and why they drift
 
@@ -63,7 +88,7 @@ IDs/MACs are in the device table in `CLAUDE.local.md`.
 
 ## Scenes, groups and virtual components (2026-10-02)
 
-The device convention doesn't fit these: a scene is named for what it does, as a phrase someone would say; a virtual component for the value it holds. Both are in Italian (household-visible) and follow the same hard rules (`bin/shelly-name-check`).
+The device convention doesn't fit these: a scene is named for what it does, as a phrase someone would say; a virtual component for the value it holds. Both are in Italian (household-visible), except helpers; each follows the voice or non-voice rules, whichever applies ("Voice names and non-voice names" above).
 
 | Name | Kind | What |
 |---|---|---|
@@ -71,11 +96,11 @@ The device convention doesn't fit these: a scene is named for what it does, as a
 | Finisci la notte del giudizio | Scene | the-purge: open all (kitchen to its limit) |
 | Limite apertura | Virtual number on Tapparella cucina (`number:200`, hidden in the app) | `kitchen-limit` |
 | Privacy o apri matrimoniale | Scene (room Camera matrimoniale, Dashboard widget) | `bedroom-privacy`: the button |
-| helper - Privacy matrimoniale | Scene (room Helpers) | `bedroom-privacy`: more open than 17 % → 15 % |
-| helper - Apri matrimoniale | Scene (room Helpers) | `bedroom-privacy`: at 13–17 % → open |
+| [helper] Privacy matrimoniale | Scene (room Helpers) | `bedroom-privacy`: more open than 17 % → 15 % |
+| [helper] Apri matrimoniale | Scene (room Helpers) | `bedroom-privacy`: at 13–17 % → open |
 | Helpers | Room | Holds the helpers |
 
-**Helpers: the way there, not the goal** (user, 2026-10-06). A scene that exists only as a step toward another one, because of Shelly's limits (e.g. the gated scenes behind a toggle button), goes in the room **Helpers** and its name starts with `helper - ` followed by what it does: "helper - Apri matrimoniale". So nobody mistakes it for something to tap. The same holds for any later helper that isn't a scene (a group, a virtual device). Two exceptions to the rules above, both the user's: the room's name is English and technical, like "Global", because it may hold more than scenes; and the prefix has a hyphen, which `bin/shelly-name-check` accepts only there. Helpers never go to a voice assistant or HomeKit (where a hyphen isn't allowed); if one ever must, give it a name without the prefix. The goal (the button) keeps a normal Italian name in its real room.
+**Helpers: the way there, not the goal** (user, 2026-10-06). A scene that exists only as a step toward another one, because of Shelly's limits (e.g. the gated scenes behind a toggle button), goes in the room **Helpers** and its name starts with `[helper] ` followed by what it does: "[helper] Apri matrimoniale". So nobody mistakes it for something to tap. The same holds for any later helper that isn't a scene (a group, a virtual device). The prefix was `helper - ` for a few hours, then became `[helper] `, which reads as a tag on the name rather than part of it (user's choice, 2026-10-06). Helpers are non-voice names (above), checked with `bin/shelly-name-check --no-voice`: the brackets are fine there, and the room's name is English and technical, like "Global", because it may hold more than scenes (the user's choices). The goal (the button) keeps a normal Italian name in its real room.
 
 **One scene per action.** Other languages and wordings for voice ("Begin the purge", "Inizia il giorno del giudizio") go in `config/automations.json` under `voice` and into the voice assistant when it's set up, not into extra scenes (user's decision, 2026-10-02; shelly-config skill). The English alias scenes that existed briefly were deleted. No group names yet.
 

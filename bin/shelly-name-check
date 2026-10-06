@@ -1,40 +1,53 @@
 #!/bin/sh
-# Usage: shelly-name-check [NAME...]
+# Usage: shelly-name-check [--no-voice] [NAME...]
 #
-# Checks device names (arguments, or one per line on stdin) against the house
-# naming rules, which keep a name usable in HomeKit/Apple Home, Matter, Home
-# Assistant, voice assistants, shells and filenames:
+# Checks names (arguments, or one per line on stdin) against the house naming
+# rules. By default, the rules for names a voice assistant may get (devices,
+# groups, the scenes and rooms people use), which keep a name usable in
+# HomeKit/Apple Home, Matter, Home Assistant, Siri/Alexa, shells and filenames:
 #   - only ASCII letters, digits and single spaces
 #   - starts and ends with a letter or digit
 #   - at most 32 bytes (Matter's NodeLabel limit)
-#   - unique within the checked set, ignoring case
-# A name may start with "helper - ": scenes and other helpers that exist only
-# as steps toward another one, which never reach a voice assistant or HomeKit.
-# The rest of the name follows the rules above.
+# With --no-voice, the looser rules for names that never reach a voice
+# assistant (helpers, the Helpers room, hidden virtual components):
+#   - ASCII letters, digits, single spaces and - _ . , : ( ) [ ] + %
+#   - no leading or trailing space
+#   - at most 50 bytes (the strictest Shelly app limit seen, on script names)
+# Both: unique within the checked set, ignoring case.
 # Prints one JSON line per name: {name, bytes, ok, problems}. Exits 1 if any
-# name fails. The naming pattern itself ("<Tipo> [porta] <stanza>") needs
-# judgment and is described in the shelly-naming skill, not checked here.
+# name fails. Which rules a name needs, and patterns such as
+# "<Tipo> [porta] <stanza>" or "[helper] ...", are in the shelly-naming skill.
 #
 # Example: shelly-scan | jq -r .name | shelly-name-check
+#          shelly-name-check --no-voice "[helper] Apri matrimoniale"
 
 set -eu
 . "$(dirname "$0")/../lib/shelly.sh"
-case ${1:-} in -h | --help) usage_from_header; exit 0 ;; esac
+voice=true
+case ${1:-} in
+  -h | --help) usage_from_header; exit 0 ;;
+  --no-voice) voice=false; shift ;;
+esac
 need jq
 
 out=$(
   if [ $# -gt 0 ]; then printf '%s\n' "$@"; else cat; fi |
-    jq -Rnc '
-      [inputs | select(length > 0)] as $names
+    jq -Rnc --argjson voice "$voice" '
+      (if $voice
+       then {chars: "^[A-Za-z0-9 ]+$", what: "letters, digits and spaces",
+             ends: "^[^A-Za-z0-9]|[^A-Za-z0-9]$", ends_what: "must start and end with a letter or digit", max: 32}
+       else {chars: "^[-A-Za-z0-9 _.,:()\\[\\]+%]+$", what: "letters, digits, spaces and - _ . , : ( ) [ ] + %",
+             ends: "^ | $", ends_what: "must not start or end with a space", max: 50}
+       end) as $rule
+      | [inputs | select(length > 0)] as $names
       | ($names | map(ascii_downcase) | group_by(.) | map(select(length > 1) | .[0])) as $dups
       | $names[]
       | . as $n
       | ($n | ascii_downcase) as $lower
-      | ($n | sub("^helper - "; "")) as $core
-      | [ (if $core | test("^[A-Za-z0-9 ]+$") then empty else "only ASCII letters, digits and spaces are allowed" end),
-          (if $core | test("^ | $") then "must start and end with a letter or digit" else empty end),
-          (if $core | test("  ") then "contains consecutive spaces" else empty end),
-          (if utf8bytelength > 32 then "\(utf8bytelength) bytes, the limit is 32" else empty end),
+      | [ (if test($rule.chars) then empty else "only ASCII \($rule.what) are allowed" end),
+          (if test($rule.ends) then $rule.ends_what else empty end),
+          (if test("  ") then "contains consecutive spaces" else empty end),
+          (if utf8bytelength > $rule.max then "\(utf8bytelength) bytes, the limit is \($rule.max)" else empty end),
           (if any($dups[]; . == $lower) then "duplicate (ignoring case)" else empty end)
         ] as $problems
       | {name: $n, bytes: utf8bytelength, ok: ($problems | length == 0), problems: $problems}'
