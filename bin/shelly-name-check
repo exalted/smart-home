@@ -8,6 +8,9 @@
 #   - starts and ends with a letter or digit
 #   - at most 32 bytes (Matter's NodeLabel limit)
 #   - unique within the checked set, ignoring case
+# A name may start with "helper - ": scenes and other helpers that exist only
+# as steps toward another one, which never reach a voice assistant or HomeKit.
+# The rest of the name follows the rules above.
 # Prints one JSON line per name: {name, bytes, ok, problems}. Exits 1 if any
 # name fails. The naming pattern itself ("<Tipo> [porta] <stanza>") needs
 # judgment and is described in the shelly-naming skill, not checked here.
@@ -27,9 +30,10 @@ out=$(
       | $names[]
       | . as $n
       | ($n | ascii_downcase) as $lower
-      | [ (if test("^[A-Za-z0-9 ]+$") then empty else "only ASCII letters, digits and spaces are allowed" end),
-          (if test("^ | $") then "must start and end with a letter or digit" else empty end),
-          (if test("  ") then "contains consecutive spaces" else empty end),
+      | ($n | sub("^helper - "; "")) as $core
+      | [ (if $core | test("^[A-Za-z0-9 ]+$") then empty else "only ASCII letters, digits and spaces are allowed" end),
+          (if $core | test("^ | $") then "must start and end with a letter or digit" else empty end),
+          (if $core | test("  ") then "contains consecutive spaces" else empty end),
           (if utf8bytelength > 32 then "\(utf8bytelength) bytes, the limit is 32" else empty end),
           (if any($dups[]; . == $lower) then "duplicate (ignoring case)" else empty end)
         ] as $problems

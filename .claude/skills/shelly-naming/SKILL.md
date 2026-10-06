@@ -21,7 +21,7 @@ The user chose this over keeping "finestra" in every name (too long), dropping t
 
 | Rule | Why |
 |---|---|
-| Only ASCII letters, digits, and single spaces | HomeKit allows letters, digits, spaces, and apostrophes. Home Assistant transliterates accents in entity IDs. macOS (NFD) and other systems (NFC) store accented letters differently. Apostrophes and other symbols break shell quoting and Windows filenames. |
+| Only ASCII letters, digits, and single spaces (one exception: the `helper - ` prefix, below) | HomeKit allows letters, digits, spaces, and apostrophes. Home Assistant transliterates accents in entity IDs. macOS (NFD) and other systems (NFC) store accented letters differently. Apostrophes and other symbols break shell quoting and Windows filenames. |
 | Starts and ends with a letter or digit | HomeKit rule |
 | At most 32 bytes | Matter `NodeLabel` limit, which also applies to bridged devices (DIRIGERA's Matter bridge, future Thread devices) |
 | Unique, ignoring case | Voice assistants, Home Assistant entity IDs, case-insensitive filesystems |
@@ -70,6 +70,12 @@ The device convention doesn't fit these: a scene is named for what it does, as a
 | Inizia la notte del giudizio | Scene | the-purge: close all |
 | Finisci la notte del giudizio | Scene | the-purge: open all (kitchen to its limit) |
 | Limite apertura | Virtual number on Tapparella cucina (`number:200`, hidden in the app) | `kitchen-limit` |
+| Privacy o apri matrimoniale | Scene (room Camera matrimoniale, Dashboard widget) | `bedroom-privacy`: the button |
+| helper - Privacy matrimoniale | Scene (room Helpers) | `bedroom-privacy`: more open than 17 % → 15 % |
+| helper - Apri matrimoniale | Scene (room Helpers) | `bedroom-privacy`: at 13–17 % → open |
+| Helpers | Room | Holds the helpers |
+
+**Helpers: the way there, not the goal** (user, 2026-10-06). A scene that exists only as a step toward another one, because of Shelly's limits (e.g. the gated scenes behind a toggle button), goes in the room **Helpers** and its name starts with `helper - ` followed by what it does: "helper - Apri matrimoniale". So nobody mistakes it for something to tap. The same holds for any later helper that isn't a scene (a group, a virtual device). Two exceptions to the rules above, both the user's: the room's name is English and technical, like "Global", because it may hold more than scenes; and the prefix has a hyphen, which `bin/shelly-name-check` accepts only there. Helpers never go to a voice assistant or HomeKit (where a hyphen isn't allowed); if one ever must, give it a name without the prefix. The goal (the button) keeps a normal Italian name in its real room.
 
 **One scene per action.** Other languages and wordings for voice ("Begin the purge", "Inizia il giorno del giudizio") go in `config/automations.json` under `voice` and into the voice assistant when it's set up, not into extra scenes (user's decision, 2026-10-02; shelly-config skill). The English alias scenes that existed briefly were deleted. No group names yet.
 

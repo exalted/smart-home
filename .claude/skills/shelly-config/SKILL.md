@@ -14,7 +14,7 @@ Some values have to exist in more than one place, because the pieces that use th
  "voice": {"Inizia la notte del giudizio": ["Inizia la notte del giudizio", "Inizia il giorno del giudizio", "Begin the purge"]}}
 ```
 
-- A copy is either on a **device** (a virtual component, by key) or in a **cloud scene** (scene name, device, and which part of its action: `set position` or `delay`).
+- A copy is either on a **device** (a virtual component, by key) or in a **cloud scene** (scene name, device, and which part of its action: `set position` or `delay`, or a `condition` on that device's position). A copy whose number isn't the value itself but follows from it says how in `derived` (e.g. `bedroom-privacy`'s helper conditions, "more than value + 2"); change those together with the value.
 - Devices are named, never identified by ID or MAC (the file is public; IDs stay in `CLAUDE.local.md`).
 - `about` says what the value means and who uses it, so nobody has to reverse-engineer it.
 
