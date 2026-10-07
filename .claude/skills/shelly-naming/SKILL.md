@@ -94,13 +94,17 @@ The device convention doesn't fit these: a scene is named for what it does, as a
 |---|---|---|
 | Inizia la notte del giudizio | Scene | the-purge: close all |
 | Finisci la notte del giudizio | Scene | the-purge: open all (kitchen to its limit) |
-| Limite apertura | Virtual number on Tapparella cucina (`number:200`, hidden in the app) | `kitchen-limit` |
+| Limite apertura | Virtual number on Tapparella cucina (`number:200`, hidden in the app); on Tapparella studio too until 2026-10-07 | `kitchen-limit` |
 | Privacy o apri matrimoniale | Scene (room Camera matrimoniale, Dashboard widget) | `bedroom-privacy`: the button |
-| [helper] Privacy matrimoniale | Scene (room Helpers) | `bedroom-privacy`: more open than 17 % → 15 % |
-| [helper] Apri matrimoniale | Scene (room Helpers) | `bedroom-privacy`: at 13–17 % → open |
+| [helper] Matrimoniale: privacy | Scene (room Helpers) | `bedroom-privacy`: more open than 17 % → 15 % |
+| [helper] Matrimoniale: apri | Scene (room Helpers) | `bedroom-privacy`: at 13–17 % → open |
+| Abbassa o apri studio | Scene (room Studio, Dashboard widget) | `studio-glare`: the button |
+| Studio pomeriggio feriale | Scene (room Studio) | `studio-glare`: Mon–Fri 15:00, starts [helper] Studio: abbassa |
+| [helper] Studio: abbassa | Scene (room Helpers) | `studio-glare`: more open than 42 % → 40 % |
+| [helper] Studio: apri | Scene (room Helpers) | `studio-glare`: at 38–42 % → open |
 | Helpers | Room | Holds the helpers |
 
-**Helpers: the way there, not the goal** (user, 2026-10-06). A scene that exists only as a step toward another one, because of Shelly's limits (e.g. the gated scenes behind a toggle button), goes in the room **Helpers** and its name starts with `[helper] ` followed by what it does: "[helper] Apri matrimoniale". So nobody mistakes it for something to tap. The same holds for any later helper that isn't a scene (a group, a virtual device). The prefix was `helper - ` for a few hours, then became `[helper] `, which reads as a tag on the name rather than part of it (user's choice, 2026-10-06). Helpers are non-voice names (above), checked with `bin/shelly-name-check --no-voice`: the brackets are fine there, and the room's name is English and technical, like "Global", because it may hold more than scenes (the user's choices). The goal (the button) keeps a normal Italian name in its real room.
+**Helpers: the way there, not the goal** (user, 2026-10-06). A scene that exists only as a step toward another one, because of Shelly's limits (e.g. the gated scenes behind a toggle button), goes in the room **Helpers** and its name reads `[helper] <Stanza>: <azione>`: "[helper] Matrimoniale: apri". So nobody mistakes it for something to tap, and since the one Helpers room holds helpers for every room and device, the room (or device) comes first and the list sorts by it; the action follows the colon. `<Stanza>` is the room word as in device names ("Matrimoniale", "Studio", "Bagno ospiti"); use the device ("Porta matrimoniale") only if a room's window and door ever both get helpers. The same holds for any later helper that isn't a scene (a group, a virtual device). The prefix was `helper - ` for a few hours, then became `[helper] `, which reads as a tag on the name rather than part of it; the room-first form came the same evening, and the two bedroom helpers were renamed to it (user's choices, 2026-10-06). `bin/shelly-name-check --no-voice` rejects a `[helper]` name not in this form. Helpers are non-voice names (above), checked with `bin/shelly-name-check --no-voice`: the brackets are fine there, and the room's name is English and technical, like "Global", because it may hold more than scenes (the user's choices). The goal (the button) keeps a normal Italian name in its real room.
 
 **One scene per action.** Other languages and wordings for voice ("Begin the purge", "Inizia il giorno del giudizio") go in `config/automations.json` under `voice` and into the voice assistant when it's set up, not into extra scenes (user's decision, 2026-10-02; shelly-config skill). The English alias scenes that existed briefly were deleted. No group names yet.
 

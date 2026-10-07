@@ -13,13 +13,15 @@
 #   - ASCII letters, digits, single spaces and - _ . , : ( ) [ ] + %
 #   - no leading or trailing space
 #   - at most 50 bytes (the strictest Shelly app limit seen, on script names)
+#   - a helper reads "[helper] <Stanza>: <azione>", so the Helpers room sorts
+#     by the room or device it serves
 # Both: unique within the checked set, ignoring case.
 # Prints one JSON line per name: {name, bytes, ok, problems}. Exits 1 if any
 # name fails. Which rules a name needs, and patterns such as
 # "<Tipo> [porta] <stanza>" or "[helper] ...", are in the shelly-naming skill.
 #
 # Example: shelly-scan | jq -r .name | shelly-name-check
-#          shelly-name-check --no-voice "[helper] Apri matrimoniale"
+#          shelly-name-check --no-voice "[helper] Matrimoniale: apri"
 
 set -eu
 . "$(dirname "$0")/../lib/shelly.sh"
@@ -47,6 +49,8 @@ out=$(
       | [ (if test($rule.chars) then empty else "only ASCII \($rule.what) are allowed" end),
           (if test($rule.ends) then $rule.ends_what else empty end),
           (if test("  ") then "contains consecutive spaces" else empty end),
+          (if test("^\\[helper\\]") and (test("^\\[helper\\] [^ :][^:]*: [^ :][^:]*$") | not)
+           then "a helper must read \"[helper] <Stanza>: <azione>\"" else empty end),
           (if utf8bytelength > $rule.max then "\(utf8bytelength) bytes, the limit is \($rule.max)" else empty end),
           (if any($dups[]; . == $lower) then "duplicate (ignoring case)" else empty end)
         ] as $problems

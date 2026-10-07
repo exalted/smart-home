@@ -11,7 +11,7 @@ Explored in the web app (control.shelly.cloud, version 3.77.24) on 2026-10-02, o
 
 ## Dashboard (bottom bar → Dashboard; 2026-10-06)
 
-Tabs "Activity Log" and "My Dashboard" (the only dashboard, empty until 2026-10-06). "Add widget" (or "+") → **Select type**: Devices, Rooms, Groups, Scenes, Alarms, Thermostats, Weather Widget (Premium) → **Select items** (checkboxes, "Selected: N", search) → Save, which sends `interface/dash/update`. The free plan allows 5 dashboards with 40 widgets each. Dashboards are stored in the cloud (`get_all_lists` → `data.dashboards`, e.g. `"scenes": {"<scene_id>": {"position": 0}}`), so the iPhone app presumably shows the same (not checked). A scene widget shows the name and room, with a play button ("Run Scene") and a power toggle ("Disable scene", which turns the scene off: not the one to tap). A Devices widget for a cover presumably has the card's up/down arrows (not added yet).
+Tabs "Activity Log" and "My Dashboard" (the only dashboard, empty until 2026-10-06). "Add widget" (or "+") → **Select type**: Devices, Rooms, Groups, Scenes, Alarms, Thermostats, Weather Widget (Premium) → **Select items** (checkboxes, "Selected: N", search) → Save, which sends `interface/dash/update`. The free plan allows 5 dashboards with 40 widgets each. Dashboards are stored in the cloud (`get_all_lists` → `data.dashboards`, e.g. `"scenes": {"<scene_id>": {"position": 0}}`), so the iPhone app presumably shows the same (not checked). A scene widget shows the name and room, with a play button ("Run Scene") and a power toggle ("Disable scene", which turns the scene off: not the one to tap). A Devices widget for a cover presumably has the card's up/down arrows (not added yet). Adding more: the item list starts at "Selected: 0" with nothing ticked, even for scenes already on the dashboard, and Save adds the ticked ones to what is there ("Widgets created: 2/40"): adding "Abbassa o apri studio" kept "Privacy o apri matrimoniale" and went after it (position 1; 2026-10-06).
 
 ## Groups ("My home" → All Groups → Add)
 
@@ -35,7 +35,7 @@ Steps: **When → Do → Active time → More options → Select room → Detail
 | Type | Free | Details |
 |---|---|---|
 | Device based | yes | Pick a device, then a property, then "Watch property as" |
-| Time based | yes | Timer (every N minutes), Daily / Weekly Schedule (weekdays + HH:MM), Once (date + HH:MM) |
+| Time based | yes | Timer (every N minutes), Daily / Weekly Schedule (weekdays + HH:MM), Once (date + HH:MM). Daily / Weekly (2026-10-06): weekday checkboxes M–S (none ticked at first) and an hour and a minute spinner (`aria-label` "Increase button"/"Decrease button", hour first); no Condition/Trigger choice, it fires at that time. Stored as `{"and": [{"eq": [{"rr": "dt:t"}, "15:00"]}, {"wday": "now", "isin": "1 2 3 4 5"}], "_gui_type": "d_cond"}` (1 = Monday), in the account's timezone (`user/get_settings` → `settings.timezone`, "Europe/Rome" here) |
 | Scene based | yes | Reacts to another scene (not explored further) |
 | Alarm based | yes | Not relevant here |
 | Manual execution | yes | Run from the app/dashboard |

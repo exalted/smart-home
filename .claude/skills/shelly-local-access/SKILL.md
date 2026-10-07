@@ -7,7 +7,7 @@ description: Get and verify local network access to the home's Shelly devices (F
 
 The Shelly devices live on the FRITZ!Box guest Wi-Fi "FRITZ!Box guest access" (192.168.179.0/24, gateway 192.168.179.1). This Mac normally sits on the main network (name in `CLAUDE.local.md`), which FRITZ!Box isolates from the guest network. Local access needs two things only the user can do, in this order:
 
-1. While still on the main network, allow guest-to-guest traffic: FRITZ!Box > Wi-Fi > Guest Access > "Wireless devices may communicate with each other" ON. With it off, guest devices reach only the router, so nothing answers even though the Mac is on the right network. The FRITZ!Box settings are only reachable from the main network, so this comes first (the user's instruction, 2026-10-02). Open the router's web admin UI for the user (URL in `CLAUDE.local.md`) with `command open <url>`.
+1. While still on the main network, allow guest-to-guest traffic: FRITZ!Box > Wi-Fi > Guest Access > "Wireless devices may communicate with each other" ON. With it off, guest devices reach only the router, so nothing answers even though the Mac is on the right network. The FRITZ!Box settings are only reachable from the main network, so this comes first (the user's instruction, 2026-10-02). Tell the user what to change; they open the router's web admin UI themselves. Never open it for them (user, 2026-10-07; until then it was opened with `command open`).
 2. Then join this Mac to the guest Wi-Fi.
 
 ## First, is the cloud enough?
@@ -33,7 +33,7 @@ The user switches networks manually, in both directions, and asked to be told wh
 Say so right away rather than waiting to be asked, because it's easy to forget:
 
 - The user can switch back to the main network.
-- Once back there, they may want to turn "Wireless devices may communicate with each other" off again (the setting is only reachable from the main network; open the admin UI for them). While it's on, anyone on the guest Wi-Fi can reach the devices.
+- Once back there, they may want to turn "Wireless devices may communicate with each other" off again (the setting is only reachable from the main network; tell them, don't open the admin UI for them). While it's on, anyone on the guest Wi-Fi can reach the devices.
 
 ## Diagnostics when netcheck's verdict looks wrong
 
