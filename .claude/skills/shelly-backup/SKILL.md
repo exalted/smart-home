@@ -35,7 +35,7 @@ After every task that changes device settings (names, cover settings, obstructio
 
 ## What the devices have in common
 
-As of 2026-10-02 the 10 profiles are identical apart from `sys.device.name`, `cover:0.obstruction_detection.power_thr` and `sys.cfg_rev`, plus the scripts, schedule jobs and KVS keys of the automations (CLAUDE.md, Automations; so far only on Tapparella cucina). To see what differs:
+As of 2026-10-02 the 10 profiles are identical apart from `sys.device.name`, `cover:0.obstruction_detection.power_thr` and `sys.cfg_rev`, plus the scripts, schedule jobs and KVS keys of the automations (CLAUDE.md, Automations; only on Tapparella cucina, and on no device since 2026-10-14, when `kitchen-morning` moved to the cloud). To see what differs:
 
 ```sh
 jq -s 'map(.config | del(.sys.device.name, .sys.cfg_rev)) as $c

@@ -3,10 +3,10 @@
     "kitchen-limit": {
       "value": 30,
       "unit": "%",
-      "about": "How far the kitchen window cover may be open by day: kitchen-morning lowers it to this, Finisci la notte del giudizio opens it to this",
+      "about": "How far the kitchen window cover may be open by day. [helper] Cucina: limite holds it: Abbassa cucina al mattino starts the helper at 07:00 (lower to this if more open than value + 2), and Finisci la notte del giudizio starts it with directly execute (go to this from any position)",
       "copies": [
-        {"device": "Tapparella cucina", "component": "number:200"},
-        {"scene": "Finisci la notte del giudizio", "device": "Tapparella cucina", "action": "set position"}
+        {"scene": "[helper] Cucina: limite", "device": "Tapparella cucina", "action": "set position"},
+        {"scene": "[helper] Cucina: limite", "device": "Tapparella cucina", "action": "condition", "cmpop": "gt", "offset": 2}
       ]
     },
     "studio-limit": {
@@ -15,8 +15,9 @@
       "about": "Where the studio window cover goes against glare on the monitor: Studio pomeriggio feriale lowers it to this at 15:00 Mon-Fri, and the button Abbassa o apri studio toggles between this and fully open, both through [helper] Studio: abbassa. The helpers' conditions are derived from it: above value + 2 counts as more open (lower it), value - 2 to value + 2 as already there (open it fully), below that as more closed (do nothing)",
       "copies": [
         {"scene": "[helper] Studio: abbassa", "device": "Tapparella studio", "action": "set position"},
-        {"scene": "[helper] Studio: abbassa", "device": "Tapparella studio", "action": "condition", "derived": "more than value + 2"},
-        {"scene": "[helper] Studio: apri", "device": "Tapparella studio", "action": "condition", "derived": "more than value - 3, and less than value + 3"}
+        {"scene": "[helper] Studio: abbassa", "device": "Tapparella studio", "action": "condition", "cmpop": "gt", "offset": 2},
+        {"scene": "[helper] Studio: apri", "device": "Tapparella studio", "action": "condition", "cmpop": "gt", "offset": -3},
+        {"scene": "[helper] Studio: apri", "device": "Tapparella studio", "action": "condition", "cmpop": "lt", "offset": 3}
       ]
     },
     "bedroom-privacy": {
@@ -25,8 +26,9 @@
       "about": "Where the button Privacy o apri matrimoniale lowers the master bedroom door cover, for dressing or before sleep. Its helper scenes' conditions are derived from it: above value + 2 counts as more open (lower it), value - 2 to value + 2 as already there (open it fully), below that as more closed (do nothing)",
       "copies": [
         {"scene": "[helper] Matrimoniale: privacy", "device": "Tapparella porta matrimoniale", "action": "set position"},
-        {"scene": "[helper] Matrimoniale: privacy", "device": "Tapparella porta matrimoniale", "action": "condition", "derived": "more than value + 2"},
-        {"scene": "[helper] Matrimoniale: apri", "device": "Tapparella porta matrimoniale", "action": "condition", "derived": "more than value - 3, and less than value + 3"}
+        {"scene": "[helper] Matrimoniale: privacy", "device": "Tapparella porta matrimoniale", "action": "condition", "cmpop": "gt", "offset": 2},
+        {"scene": "[helper] Matrimoniale: apri", "device": "Tapparella porta matrimoniale", "action": "condition", "cmpop": "gt", "offset": -3},
+        {"scene": "[helper] Matrimoniale: apri", "device": "Tapparella porta matrimoniale", "action": "condition", "cmpop": "lt", "offset": 3}
       ]
     },
     "purge-door-delay": {

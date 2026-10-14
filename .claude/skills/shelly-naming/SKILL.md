@@ -48,7 +48,7 @@ Which names are which:
 | Scenes people use (the button, the purge) | **Voice** | A scene reaches Alexa as a virtual device named after it once it gets an "Alexa Notify" action ([Shelly support](https://support.shelly.cloud/en/support/solutions/articles/103000294080-alexa-notify-in-shelly-smart-control-app-scenes-)), and Siri via a Shortcut; their other wordings live in `config/automations.json` (shelly-config skill) |
 | Rooms that are real rooms | **Voice** | Siri's "in cucina" uses HomeKit's rooms, which should mirror these by hand |
 | Helpers (scenes, groups or other things in the Helpers room) and that room | Non-voice | Only other scenes start them; never give them an Alexa Notify action or a Shortcut |
-| Hidden virtual components ("Limite apertura") | Non-voice | Not shown in the app; Home Assistant would presumably make them entities, which reach an assistant only if exposed there on purpose |
+| Hidden virtual components (none now; e.g. the former "Limite apertura") | Non-voice | Not shown in the app; Home Assistant would presumably make them entities, which reach an assistant only if exposed there on purpose |
 | Script names, KVS keys, schedule jobs | Neither: technical | Their own convention, English kebab-case (shelly-scripts skill) |
 
 If a non-voice thing ever has to be called by voice, rename it to pass the voice rules first. Not verified: whether Google Home gets Shelly groups or scenes, and how long a name the Shelly cloud stores (nothing over 30 bytes tried).
@@ -93,8 +93,9 @@ The device convention doesn't fit these: a scene is named for what it does, as a
 | Name | Kind | What |
 |---|---|---|
 | Inizia la notte del giudizio | Scene | the-purge: close all |
-| Finisci la notte del giudizio | Scene | the-purge: open all (kitchen to its limit) |
-| Limite apertura | Virtual number on Tapparella cucina (`number:200`, hidden in the app); on Tapparella studio too until 2026-10-07 | `kitchen-limit` |
+| Finisci la notte del giudizio | Scene | the-purge: open all (kitchen to its limit, through [helper] Cucina: limite) |
+| Abbassa cucina al mattino | Scene (room Cucina) | `kitchen-morning`: every day 07:00, starts [helper] Cucina: limite (2026-10-14) |
+| [helper] Cucina: limite | Scene (room Helpers) | `kitchen-limit`: more open than 32 % → 30 % (Finisci skips the check) |
 | Privacy o apri matrimoniale | Scene (room Camera matrimoniale, Dashboard widget) | `bedroom-privacy`: the button |
 | [helper] Matrimoniale: privacy | Scene (room Helpers) | `bedroom-privacy`: more open than 17 % → 15 % |
 | [helper] Matrimoniale: apri | Scene (room Helpers) | `bedroom-privacy`: at 13–17 % → open |
@@ -103,6 +104,8 @@ The device convention doesn't fit these: a scene is named for what it does, as a
 | [helper] Studio: abbassa | Scene (room Helpers) | `studio-glare`: more open than 42 % → 40 % |
 | [helper] Studio: apri | Scene (room Helpers) | `studio-glare`: at 38–42 % → open |
 | Helpers | Room | Holds the helpers |
+
+Gone: "Limite apertura", the hidden virtual number (`number:200`) that held `kitchen-limit` on Tapparella cucina (2026-10-02 to 2026-10-14) and `studio-limit` on Tapparella studio (until 2026-10-07).
 
 **Helpers: the way there, not the goal** (user, 2026-10-06). A scene that exists only as a step toward another one, because of Shelly's limits (e.g. the gated scenes behind a toggle button), goes in the room **Helpers** and its name reads `[helper] <Stanza>: <azione>`: "[helper] Matrimoniale: apri". So nobody mistakes it for something to tap, and since the one Helpers room holds helpers for every room and device, the room (or device) comes first and the list sorts by it; the action follows the colon. `<Stanza>` is the room word as in device names ("Matrimoniale", "Studio", "Bagno ospiti"); use the device ("Porta matrimoniale") only if a room's window and door ever both get helpers. The same holds for any later helper that isn't a scene (a group, a virtual device). The prefix was `helper - ` for a few hours, then became `[helper] `, which reads as a tag on the name rather than part of it; the room-first form came the same evening, and the two bedroom helpers were renamed to it (user's choices, 2026-10-06). `bin/shelly-name-check --no-voice` rejects a `[helper]` name not in this form. Helpers are non-voice names (above), checked with `bin/shelly-name-check --no-voice`: the brackets are fine there, and the room's name is English and technical, like "Global", because it may hold more than scenes (the user's choices). The goal (the button) keeps a normal Italian name in its real room.
 

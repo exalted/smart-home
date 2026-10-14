@@ -1,0 +1,64 @@
+#!/bin/sh
+# Usage: shelly-scene-check [--config FILE] SCENE_LIST ALL_LISTS
+#
+# Compares each value in config/automations.json (or FILE) with its copies in
+# cloud scenes: a "set position", the "delay" of a delayed action, or a
+# position "condition" (want = value + offset, compared with "cmpop"). The
+# public Cloud Control API has no scenes, so the input is what the Shelly web
+# app downloads: SCENE_LIST is the scene/list response and ALL_LISTS the
+# interface/device/get_all_lists response, which maps device names to the
+# IDs scenes use. The shelly-config skill says how to capture both. No
+# network access.
+#
+# Prints one JSON line per scene copy: {value, scene, device, action, want,
+# have, ok}, plus "error" when the scene, device or action isn't found.
+# Exits 1 if any copy differs or is missing.
+#
+# Example: shelly-scene-check .scratch/scene-list.network-response \
+#            .scratch/get_all_lists.network-response | jq -c 'select(.ok | not)'
+
+set -eu
+. "$(dirname "$0")/../lib/shelly.sh"
+
+config=$(dirname "$0")/../config/automations.json
+case ${1:-} in
+  -h | --help) usage_from_header; exit 0 ;;
+  --config) config=${2:?--config needs a file}; shift 2 ;;
+esac
+[ $# -eq 2 ] || die "usage: shelly-scene-check [--config FILE] SCENE_LIST ALL_LISTS"
+need jq
+for f in "$config" "$1" "$2"; do [ -r "$f" ] || die "can't read $f"; done
+
+out=$(jq -nc --slurpfile config "$config" --slurpfile scenes "$1" --slurpfile lists "$2" '
+  # Scene actions name a device by its ID (the MAC) as a decimal number.
+  def hex2num: ascii_downcase | explode
+    | reduce .[] as $c (0; . * 16 + (if $c >= 97 then $c - 87 else $c - 48 end));
+  def dev_id: split(":") | if .[0] == "dev" then (.[1] | tonumber) else null end;
+  def minutes: if .units == "sec" then .wait / 60 else .wait end;
+
+  ($lists[0].data.devices | map({key: .name, value: (.id | hex2num)}) | from_entries) as $ids
+  | ($scenes[0].data.scene_scripts | map({key: ._meta.name, value: .}) | from_entries) as $byname
+  | $config[0].values | to_entries[] | .key as $k | .value.value as $v
+  | .value.copies[] | select(.scene)
+  | . as $c
+  | {value: $k, scene, device, action} + (if .cmpop then {cmpop} else {} end)
+  | (if $c.action == "condition" then $v + $c.offset else $v end) as $want
+  | . + {want: $want}
+  | $byname[$c.scene] as $s
+  | $ids[$c.device] as $id
+  | if $s == null then . + {have: null, ok: false, error: "no scene with this name"}
+    elif $id == null then . + {have: null, ok: false, error: "no device with this name"}
+    else
+      ([$s.do[] | if .wait then .do.blk[] else . end
+         | select(.r? and (.r | dev_id) == $id and (.r | endswith(":rlp")))] | map(.set)) as $positions
+      | ([$s.do[] | select(.wait and any(.do.blk[]; .r? and (.r | dev_id) == $id))] | map(minutes)) as $delays
+      | ([$s.if.or[].and[] | select(.r? and (.r | dev_id) == $id and .cmpop == $c.cmpop)] | map(.cmpval)) as $conds
+      | ({"set position": $positions, "delay": $delays, "condition": $conds}[$c.action]) as $found
+      | if $found == null then . + {have: null, ok: false, error: "unknown action"}
+        elif $found == [] then . + {have: null, ok: false, error: "not in the scene"}
+        else . + {have: ($found | if length == 1 then .[0] else . end),
+                  ok: all($found[]; . == $want)} end
+    end')
+[ -n "$out" ] || exit 0
+printf '%s\n' "$out"
+printf '%s\n' "$out" | jq -se 'all(.ok)' >/dev/null

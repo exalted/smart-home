@@ -4,7 +4,7 @@ From the official API docs (shelly-api-docs.shelly.cloud, via context7) on 2026-
 
 ## What a Shelly 2PM Gen3 has
 
-Cover (`cover:0`), two inputs, Virtual components, BTHome components, Matter (off here), MQTT, Outbound WebSocket, KNX, up to 10 scripts. Observed on all 10 (backup 2026-10-02): timezone Europe/Rome and `sys.location` lat/lon set, no webhooks; scripts, schedules and a virtual component only on Tapparella cucina (CLAUDE.md, Automations).
+Cover (`cover:0`), two inputs, Virtual components, BTHome components, Matter (off here), MQTT, Outbound WebSocket, KNX, up to 10 scripts. Observed on all 10 (backup 2026-10-02): timezone Europe/Rome and `sys.location` lat/lon set, no webhooks; scripts, schedules and a virtual component only on Tapparella cucina (CLAUDE.md, Automations). None on any device since 2026-10-14 (backup that day), when `kitchen-morning` moved to the cloud.
 
 ## Limits
 
@@ -62,7 +62,7 @@ Shelly's examples repo (`ALLTERCO/shelly-script-examples`, folder `weather-env`)
 
 ## Virtual components
 
-`Virtual.Add {"type": "boolean", "id": 200, "config": {"name": "...", "persisted": true}}`; types boolean, number, text, enum, group, button. Scripts read and set them (`handle.getValue()`, `setValue()`, `on("change", ...)`). In use: `number:200` "Limite apertura" on Tapparella cucina, read by `cover-clamp` (`{"max": "number:200"}`) for `kitchen-morning` (2026-10-02); the studio had one too for `studio-afternoon` until 2026-10-07. `Virtual.Delete {"key": "number:200"}` removes one (2026-10-07). `Virtual.Add` over RPC works, `meta.ui` included (studio's, 2026-10-02; shelly-config skill). Scripts can also read one with `Shelly.getComponentStatus("number:200").value` (that is how `cover-clamp` does it). `Number.Set {"id": 200, "value": 30}` / `Number.GetStatus {"id": 200}` over RPC; the same `<Type>.Set` / `.GetStatus` shape for the other types. Possible use: a "vacation" boolean that a plant/presence script checks. They can be created and edited from the app through the cloud (app-ui.md), but cloud scenes can't use them (SKILL.md, impossible).
+`Virtual.Add {"type": "boolean", "id": 200, "config": {"name": "...", "persisted": true}}`; types boolean, number, text, enum, group, button. Scripts read and set them (`handle.getValue()`, `setValue()`, `on("change", ...)`). None in use since 2026-10-14. Until then `number:200` "Limite apertura" on Tapparella cucina, read by `cover-clamp` (`{"max": "number:200"}`) for `kitchen-morning` (2026-10-02); the studio had one too for `studio-afternoon` until 2026-10-07. `Virtual.Delete {"key": "number:200"}` removes one (2026-10-07). `Virtual.Add` over RPC works, `meta.ui` included (studio's, 2026-10-02; shelly-config skill). Scripts can also read one with `Shelly.getComponentStatus("number:200").value` (that is how `cover-clamp` does it). `Number.Set {"id": 200, "value": 30}` / `Number.GetStatus {"id": 200}` over RPC; the same `<Type>.Set` / `.GetStatus` shape for the other types. Possible use: a "vacation" boolean that a plant/presence script checks. They can be created and edited from the app through the cloud (app-ui.md), but cloud scenes can't use them (SKILL.md, impossible).
 
 ## BTHome (Shelly BLU sensors)
 

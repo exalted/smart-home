@@ -1,28 +1,5 @@
 {
-  "components": [
-    {
-      "config": {
-        "access": "*",
-        "default_value": 30,
-        "id": 200,
-        "max": 100,
-        "meta": {
-          "cloud": [],
-          "ui": {
-            "icon": "",
-            "step": 1,
-            "unit": "%",
-            "view": ""
-          }
-        },
-        "min": 0,
-        "name": "Limite apertura",
-        "owner": "",
-        "persisted": true
-      },
-      "key": "number:200"
-    }
-  ],
+  "components": [],
   "config": {
     "bthome": {},
     "cloud": {
@@ -109,18 +86,8 @@
       "use_client_cert": false,
       "user": null
     },
-    "script:1": {
-      "enable": false,
-      "id": 1,
-      "name": "cover-clamp"
-    },
-    "script:2": {
-      "enable": true,
-      "id": 2,
-      "name": "daily-once"
-    },
     "sys": {
-      "cfg_rev": 30,
+      "cfg_rev": 31,
       "debug": {
         "file_level": null,
         "file_log": {
@@ -201,69 +168,15 @@
     }
   },
   "gen": 3,
-  "kvs_keys": [
-    "daily-once.kitchen-morning"
-  ],
+  "kvs_keys": [],
   "model": "S3SW-002P16EU",
   "name": "Tapparella cucina",
   "profile": "cover",
   "schedules": {
-    "jobs": [
-      {
-        "calls": [
-          {
-            "method": "Script.Start",
-            "params": {
-              "id": 2
-            }
-          },
-          {
-            "method": "Script.Eval",
-            "params": {
-              "code": "main({\"key\":\"kitchen-morning\",\"after\":[\"@sunrise\",\"0 0 7 * * *\"],\"then\":[{\"script\":\"cover-clamp\",\"args\":{\"max\":\"number:200\"}}]})",
-              "id": 2
-            }
-          }
-        ],
-        "enable": true,
-        "id": 1,
-        "timespec": "@sunrise+0h1m * * *"
-      },
-      {
-        "calls": [
-          {
-            "method": "Script.Start",
-            "params": {
-              "id": 2
-            }
-          },
-          {
-            "method": "Script.Eval",
-            "params": {
-              "code": "main({\"key\":\"kitchen-morning\",\"after\":[\"@sunrise\",\"0 0 7 * * *\"],\"then\":[{\"script\":\"cover-clamp\",\"args\":{\"max\":\"number:200\"}}]})",
-              "id": 2
-            }
-          }
-        ],
-        "enable": true,
-        "id": 2,
-        "timespec": "0 1 7 * * *"
-      }
-    ],
-    "rev": 12
+    "jobs": [],
+    "rev": 14
   },
-  "scripts": [
-    {
-      "enable": false,
-      "id": 1,
-      "name": "cover-clamp"
-    },
-    {
-      "enable": true,
-      "id": 2,
-      "name": "daily-once"
-    }
-  ],
+  "scripts": [],
   "ver": "2.0.1",
   "webhooks": {
     "hooks": [],
